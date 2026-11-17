@@ -1,0 +1,96 @@
+{
+  "task": "energy_consumed_prediction",
+  "target": "Energy Consumed (kWh)",
+  "target_units": "kWh",
+  "features_numeric": [
+    "Battery Capacity (kWh)",
+    "State of Charge (Start %)",
+    "State of Charge (End %)",
+    "Charging Rate (kW)",
+    "Temperature (\u00b0C)",
+    "Vehicle Age (years)",
+    "socDelta",
+    "requiredEnergyApprox",
+    "startHour",
+    "isWeekend"
+  ],
+  "features_categorical": [
+    "Vehicle Model",
+    "Charger Type",
+    "Charging Station Location",
+    "Time of Day",
+    "User Type"
+  ],
+  "selected_model": "LinearBaseline",
+  "all_results": {
+    "LinearBaseline": {
+      "cv_mae": 18.5913,
+      "test_mae": 18.6296,
+      "test_rmse": 22.4734,
+      "test_r2": -0.0178
+    },
+    "RandomForest": {
+      "cv_mae": 18.5585,
+      "test_mae": 18.9251,
+      "test_rmse": 22.9087,
+      "test_r2": -0.0577
+    },
+    "HistGradientBoosting": {
+      "cv_mae": 19.8017,
+      "test_mae": 20.3074,
+      "test_rmse": 25.4448,
+      "test_r2": -0.3048
+    }
+  },
+  "subgroup_errors": {
+    "Charger Type": {
+      "Level 2": {
+        "count": 83,
+        "mae": 17.8217
+      },
+      "Level 1": {
+        "count": 97,
+        "mae": 19.9443
+      },
+      "DC Fast Charger": {
+        "count": 84,
+        "mae": 17.9098
+      }
+    },
+    "Vehicle Model": {
+      "Hyundai Kona": {
+        "count": 56,
+        "mae": 18.9129
+      },
+      "Tesla Model 3": {
+        "count": 50,
+        "mae": 20.4385
+      },
+      "BMW i3": {
+        "count": 54,
+        "mae": 17.9699
+      },
+      "Nissan Leaf": {
+        "count": 54,
+        "mae": 18.2151
+      },
+      "Chevy Bolt": {
+        "count": 50,
+        "mae": 17.6636
+      }
+    }
+  },
+  "train_rows": 1056,
+  "test_rows": 264,
+  "split": "80/20 random, seed=42",
+  "split_limitation": "Random split, not time-aware. Each user appears once so no temporal ordering is meaningful.",
+  "training_date": "2026-11-17T13:29:28.423503+00:00",
+  "dataset_version": "/Users/sunny/Clg/Sem-07/DT_EV-Battery/laptop-2/src/../data/processed/charging_clean.parquet",
+  "limitations": [
+    "Dataset is synthetic with loosely coupled columns (96% flagged).",
+    "Predictions are ML estimates from this dataset, not physically validated.",
+    "Energy and duration are independently generated in this dataset \u2014 real energy depends on duration.",
+    "Random split used; a time-aware split is not practical for this single-session-per-user data."
+  ],
+  "sample_inference": "python -c \"import joblib; m=joblib.load('/Users/sunny/Clg/Sem-07/DT_EV-Battery/laptop-2/src/../models/energy.joblib'); print(m)\""
+}
