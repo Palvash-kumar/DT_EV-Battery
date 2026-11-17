@@ -1,0 +1,48 @@
+# Mosquitto ACL — Access Control List
+# EV Charging Station Digital Twin
+#
+# Format: topic [read|write|readwrite|deny] <topic>
+# Patterns: %c = client ID, %u = username
+#
+# Users:
+#   backend  — Laptop 1 Node.js/Express backend
+#   mlworker — Laptop 2 Python inference service
+#   sensor   — Arduino temperature gateway
+#   admin    — development/debugging
+
+# ── backend (Laptop 1) ───────────────────────────────────────
+user backend
+# Publishes prediction requests
+topic write evdt/v1/requests/charging
+# Subscribes to results
+topic read evdt/v1/results/charging
+topic read evdt/v1/results/health
+topic read evdt/v1/results/optimization
+topic read evdt/v1/alerts
+# Publishes and reads station status (retained)
+topic readwrite evdt/v1/stations/+/status
+# Reads temperature telemetry
+topic read evdt/v1/telemetry/temperature
+
+# ── mlworker (Laptop 2) ──────────────────────────────────────
+user mlworker
+# Subscribes to prediction requests
+topic read evdt/v1/requests/charging
+# Publishes prediction results
+topic write evdt/v1/results/charging
+topic write evdt/v1/results/health
+topic write evdt/v1/results/optimization
+# Publishes alerts
+topic write evdt/v1/alerts
+# Reads temperature telemetry (for context)
+topic read evdt/v1/telemetry/temperature
+
+# ── sensor (Arduino gateway) ─────────────────────────────────
+user sensor
+# Only publishes temperature readings
+topic write evdt/v1/telemetry/temperature
+
+# ── admin (development/debugging) ────────────────────────────
+user admin
+# Full access to all topics for debugging
+topic readwrite evdt/v1/#

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evdt/v1/health-result.schema.json",
+  "title": "Battery Health Estimate Result",
+  "description": "Published to evdt/v1/results/health by Laptop 2 ML worker. SOH and RUL estimates from aging-data domain.",
+  "type": "object",
+  "required": ["schemaVersion", "messageId", "requestId", "status", "processedAt"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0" },
+    "messageId": { "type": "string", "format": "uuid" },
+    "requestId": { "type": "string", "format": "uuid" },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "error"]
+    },
+    "processedAt": { "type": "string", "format": "date-time" },
+    "health": {
+      "type": "object",
+      "description": "Present when status = completed. All values are MODEL ESTIMATES, not measured.",
+      "properties": {
+        "sohPct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Estimated SOH (%). Model estimate from aging-data domain."
+        },
+        "capacityLossAh": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Estimated capacity loss in Ah."
+        },
+        "rulCycles": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Estimated remaining useful life in cycles. Null if unable to estimate."
+        },
+        "eolThresholdSohPct": {
+          "type": "number",
+          "description": "EOL threshold used for RUL calculation (default: 80%)."
+        }
+      },
+      "required": ["sohPct", "eolThresholdSohPct"]
+    },
+    "model": {
+      "type": "object",
+      "properties": {
+        "sohVersion": { "type": "string" },
+        "rulVersion": { "type": "string" }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "applicabilityNotes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Chemistry/domain limitations for this estimate."
+    }
+  }
+}

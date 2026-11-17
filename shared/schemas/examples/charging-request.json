@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "messageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "requestId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  "sentAt": "2026-11-17T10:15:30.000Z",
+  "stationId": "STATION-001",
+  "vehicle": {
+    "model": "Tesla Model 3",
+    "batteryCapacityKwh": 75,
+    "vehicleAgeYears": 3
+  },
+  "charging": {
+    "startSocPct": 25,
+    "targetSocPct": 80,
+    "chargerType": "DC Fast Charger",
+    "requestedRateKw": 50
+  },
+  "environment": {
+    "temperatureC": 30,
+    "source": "simulated"
+  }
+}

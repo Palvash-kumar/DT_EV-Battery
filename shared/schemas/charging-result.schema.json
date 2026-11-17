@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evdt/v1/charging-result.schema.json",
+  "title": "EV Charging Prediction Result",
+  "description": "Published to evdt/v1/results/charging by Laptop 2 ML worker. Contains duration/energy predictions correlated by requestId.",
+  "type": "object",
+  "required": ["schemaVersion", "messageId", "requestId", "status", "processedAt"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "messageId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique per MQTT message for QoS 1 deduplication."
+    },
+    "requestId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Correlates to the original request."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "error", "invalid_request"],
+      "description": "Result status."
+    },
+    "processedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC ISO 8601 timestamp when inference completed."
+    },
+    "predictions": {
+      "type": "object",
+      "description": "Present when status = completed.",
+      "properties": {
+        "durationHours": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Predicted charging duration (hours). ML estimate, not measured."
+        },
+        "energyKwh": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Predicted energy consumed (kWh). ML estimate, not measured."
+        }
+      },
+      "required": ["durationHours", "energyKwh"]
+    },
+    "model": {
+      "type": "object",
+      "description": "Model version metadata for auditability.",
+      "properties": {
+        "durationVersion": { "type": "string" },
+        "energyVersion": { "type": "string" }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Human-readable caveats (e.g., input near training bounds)."
+    },
+    "error": {
+      "type": "object",
+      "description": "Present when status = error or invalid_request.",
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string", "description": "Safe message — no stack traces or secrets." }
+      }
+    }
+  }
+}

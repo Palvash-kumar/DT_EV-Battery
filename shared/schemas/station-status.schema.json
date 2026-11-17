@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evdt/v1/station-status.schema.json",
+  "title": "Station Status (Retained)",
+  "description": "Published to evdt/v1/stations/{stationId}/status with retain=true. Latest station state.",
+  "type": "object",
+  "required": ["schemaVersion", "messageId", "stationId", "updatedAt", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0" },
+    "messageId": { "type": "string", "format": "uuid" },
+    "stationId": { "type": "string", "minLength": 1 },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "status": {
+      "type": "string",
+      "enum": ["online", "offline", "maintenance", "fault"],
+      "description": "Overall station status."
+    },
+    "chargers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["chargerId", "status"],
+        "properties": {
+          "chargerId": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["available", "charging", "fault", "offline"]
+          },
+          "currentSessionRequestId": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "properties": {
+        "temperatureC": { "type": ["number", "null"] },
+        "temperatureSource": { "type": "string", "enum": ["sensor", "simulation", "unknown"] },
+        "lastTemperatureAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  }
+}

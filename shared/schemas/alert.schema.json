@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evdt/v1/alert.schema.json",
+  "title": "Digital Twin Alert",
+  "description": "Published to evdt/v1/alerts by any service. Anomaly scores, threshold breaches, or service failures.",
+  "type": "object",
+  "required": ["schemaVersion", "messageId", "alertId", "timestamp", "severity", "type", "source", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0" },
+    "messageId": { "type": "string", "format": "uuid" },
+    "alertId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Stable alert ID for deduplication and lifecycle tracking."
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "severity": {
+      "type": "string",
+      "enum": ["info", "warning", "critical"],
+      "description": "Alert severity level."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["temperature_threshold", "soc_anomaly", "service_offline", "prediction_timeout", "anomaly_score", "sensor_offline"],
+      "description": "Alert category."
+    },
+    "source": {
+      "type": "string",
+      "description": "Service or component that raised the alert."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "acknowledged", "resolved"],
+      "description": "Alert lifecycle status."
+    },
+    "affectedAsset": {
+      "type": "string",
+      "description": "Station, charger, or sensor ID affected."
+    },
+    "evidence": {
+      "type": "object",
+      "description": "Data supporting the alert (values, thresholds, scores).",
+      "additionalProperties": true
+    },
+    "recommendedAction": {
+      "type": "string",
+      "description": "Human-readable suggested inspection/response."
+    }
+  }
+}

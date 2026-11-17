@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evdt/v1/telemetry-temperature.schema.json",
+  "title": "Temperature Telemetry Reading",
+  "description": "Published to evdt/v1/telemetry/temperature by Arduino sensor gateway or simulator.",
+  "type": "object",
+  "required": ["schemaVersion", "messageId", "stationId", "timestamp", "temperatureC", "source"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0" },
+    "messageId": { "type": "string", "format": "uuid" },
+    "stationId": { "type": "string", "minLength": 1 },
+    "sensorId": {
+      "type": "string",
+      "description": "Physical sensor identifier (e.g., 'DHT22-01')."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC ISO 8601 timestamp of the reading."
+    },
+    "temperatureC": {
+      "type": "number",
+      "minimum": -50,
+      "maximum": 85,
+      "description": "Temperature in °C. This is AMBIENT temperature, not battery cell temperature."
+    },
+    "source": {
+      "type": "string",
+      "enum": ["sensor", "simulation"],
+      "description": "Whether this is a real sensor reading or simulated."
+    },
+    "calibrationStatus": {
+      "type": "string",
+      "enum": ["calibrated", "uncalibrated", "unknown"],
+      "description": "Calibration status of the sensor."
+    },
+    "simulated": {
+      "type": "boolean",
+      "description": "Explicit boolean flag. true = simulated, false = real sensor."
+    }
+  }
+}

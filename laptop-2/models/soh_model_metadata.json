@@ -1,0 +1,67 @@
+{
+  "task": "battery_soh_prediction",
+  "target": "soh_pct",
+  "target_units": "percent (SOH%)",
+  "features": [
+    "cycle",
+    "temperature_c",
+    "charge_rate_c",
+    "discharge_rate_c",
+    "dod_pct"
+  ],
+  "selected_model": "RandomForest",
+  "all_results": {
+    "LinearRegression": {
+      "test_mae": 4.7304,
+      "test_rmse": 6.2718,
+      "test_r2": 0.8544
+    },
+    "RandomForest": {
+      "test_mae": 0.8728,
+      "test_rmse": 1.1705,
+      "test_r2": 0.9949
+    },
+    "HistGradientBoosting": {
+      "test_mae": 0.8757,
+      "test_rmse": 1.1456,
+      "test_r2": 0.9951
+    }
+  },
+  "per_battery_errors": {
+    "B0026": {
+      "count": 474,
+      "mae": 0.5495,
+      "rmse": 0.7629
+    },
+    "B0005": {
+      "count": 616,
+      "mae": 1.1217,
+      "rmse": 1.4058
+    }
+  },
+  "train_batteries": [
+    "B0018",
+    "B0025",
+    "B0007",
+    "B0034",
+    "B0033",
+    "B0006"
+  ],
+  "test_batteries": [
+    "B0026",
+    "B0005"
+  ],
+  "train_rows": 3396,
+  "test_rows": 1090,
+  "split": "By battery ID (75/25), never random rows",
+  "eol_threshold_soh_pct": 80.0,
+  "training_date": "2026-11-17T14:22:38.803464+00:00",
+  "dataset_version": "/Users/sunny/Clg/Sem-07/DT_EV-Battery/laptop-2/src/../data/battery_aging/processed/aging_normalized.parquet",
+  "limitations": [
+    "Model trained on lab cycling data (single chemistry, controlled conditions).",
+    "SOH predictions are model estimates from aging-data domain, not measured EV SOH.",
+    "Real EV batteries operate under variable conditions \u2014 lab results do not transfer directly.",
+    "Split by battery ID to prevent leakage, but test set has only ~25% of batteries.",
+    "Temperature in this dataset is cell/ambient test temperature, not real-world driving temperature."
+  ]
+}

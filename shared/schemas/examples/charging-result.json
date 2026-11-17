@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0",
+  "messageId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "requestId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  "status": "completed",
+  "processedAt": "2026-11-17T10:15:31.234Z",
+  "predictions": {
+    "durationHours": 2.28,
+    "energyKwh": 37.62
+  },
+  "model": {
+    "durationVersion": "2026-11-17",
+    "energyVersion": "2026-11-17"
+  },
+  "warnings": [
+    "Predictions are ML estimates from a synthetic dataset, not physically validated."
+  ]
+}

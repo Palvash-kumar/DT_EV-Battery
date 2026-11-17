@@ -1,0 +1,70 @@
+{
+  "task": "battery_rul_prediction",
+  "target": "rul_cycles",
+  "target_units": "cycles to EOL",
+  "eol_threshold_soh_pct": 80.0,
+  "features": [
+    "cycle",
+    "soh_pct",
+    "capacity_loss_ah",
+    "temperature_c",
+    "charge_rate_c",
+    "discharge_rate_c",
+    "dod_pct"
+  ],
+  "selected_model": "RandomForest",
+  "all_results": {
+    "LinearRegression": {
+      "test_mae": 46.1564,
+      "test_rmse": 57.5115,
+      "test_r2": 0.0394
+    },
+    "RandomForest": {
+      "test_mae": 1.5168,
+      "test_rmse": 3.1555,
+      "test_r2": 0.9971
+    },
+    "HistGradientBoosting": {
+      "test_mae": 1.6079,
+      "test_rmse": 3.5614,
+      "test_r2": 0.9963
+    }
+  },
+  "per_battery_errors": {
+    "B0026": {
+      "count": 474,
+      "mae": 1.5,
+      "rmse": 3.2
+    },
+    "B0005": {
+      "count": 616,
+      "mae": 1.5,
+      "rmse": 3.1
+    }
+  },
+  "train_batteries": [
+    "B0018",
+    "B0025",
+    "B0007",
+    "B0034",
+    "B0033",
+    "B0006"
+  ],
+  "test_batteries": [
+    "B0026",
+    "B0005"
+  ],
+  "train_rows": 3396,
+  "test_rows": 1090,
+  "split": "By battery ID (75/25), never random rows",
+  "training_date": "2026-11-17T14:22:47.070368+00:00",
+  "dataset_version": "/Users/sunny/Clg/Sem-07/DT_EV-Battery/laptop-2/src/../data/battery_aging/processed/aging_normalized.parquet",
+  "limitations": [
+    "RUL is estimated as cycles until SOH \u2264 80% \u2014 threshold is a configurable assumption.",
+    "Model trained on lab cycling data (single chemistry, controlled conditions).",
+    "RUL predictions are model estimates, not certified battery lifetime guarantees.",
+    "Real EV batteries face variable conditions (temperature, charge patterns, calendar aging).",
+    "Lab-to-field transfer requires calibration with real vehicle data.",
+    "Batteries that never reached EOL in test data have extrapolated RUL labels."
+  ]
+}

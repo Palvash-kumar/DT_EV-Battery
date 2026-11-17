@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evdt/v1/charging-request.schema.json",
+  "title": "EV Charging Prediction Request",
+  "description": "Published to evdt/v1/requests/charging by Laptop 1 backend. Contains all pre-session fields needed for duration and energy prediction.",
+  "type": "object",
+  "required": ["schemaVersion", "messageId", "requestId", "sentAt", "stationId", "vehicle", "charging", "environment"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for forward compatibility."
+    },
+    "messageId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique per MQTT message. Used for QoS 1 deduplication."
+    },
+    "requestId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Logical request ID. Same across retries; correlates request and result."
+    },
+    "sentAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC ISO 8601 timestamp when the request was created."
+    },
+    "stationId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Charging station identifier."
+    },
+    "vehicle": {
+      "type": "object",
+      "required": ["model", "batteryCapacityKwh", "vehicleAgeYears"],
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "string",
+          "enum": ["BMW i3", "Chevy Bolt", "Hyundai Kona", "Nissan Leaf", "Tesla Model 3"],
+          "description": "Vehicle model — must match training data categories."
+        },
+        "batteryCapacityKwh": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 300,
+          "description": "Battery capacity in kWh."
+        },
+        "vehicleAgeYears": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 30,
+          "description": "Vehicle age in years."
+        }
+      }
+    },
+    "charging": {
+      "type": "object",
+      "required": ["startSocPct", "targetSocPct", "chargerType", "requestedRateKw"],
+      "additionalProperties": false,
+      "properties": {
+        "startSocPct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Current state of charge (%)."
+        },
+        "targetSocPct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Desired state of charge (%). Must be > startSocPct."
+        },
+        "chargerType": {
+          "type": "string",
+          "enum": ["Level 1", "Level 2", "DC Fast Charger"],
+          "description": "Charger type — must match training data categories."
+        },
+        "requestedRateKw": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 350,
+          "description": "Requested charging rate in kW."
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": ["temperatureC", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "temperatureC": {
+          "type": "number",
+          "minimum": -50,
+          "maximum": 60,
+          "description": "Ambient temperature in °C."
+        },
+        "source": {
+          "type": "string",
+          "enum": ["sensor", "simulation", "manual"],
+          "description": "Source of the temperature reading."
+        }
+      }
+    }
+  }
+}
