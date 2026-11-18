@@ -84,8 +84,13 @@ All three must be on the same Wi-Fi/LAN. The browser only ever talks to the web 
 |---|---|---|
 | Arduino → sensor laptop | USB serial, 9600 baud | No Wi-Fi credentials or broker passwords on the board. The sketch only prints `Temperature: 31.26 °C` |
 | Sensor laptop → Mac | **OPC UA** (node-opcua server, asyncua client) | The industrial standard for exposing device data. Typed values with status codes and source timestamps, and a subscription so the Mac is notified of each new value |
+<<<<<<< HEAD
 | Mac ↔ web laptop | **MQTT** (Mosquitto) | Lightweight publish/subscribe with QoS 1. It decouples the web app from the ML worker |
 | Web laptop ↔ browser | REST + **Socket.IO** | The browser gets live updates without polling and never needs MQTT access |
+=======
+| Mac ↔️ web laptop | **MQTT** (Mosquitto) | Lightweight publish/subscribe with QoS 1. It decouples the web app from the ML worker |
+| Web laptop ↔️ browser | REST + **Socket.IO** | The browser gets live updates without polling and never needs MQTT access |
+>>>>>>> 8cf7f94e787c25a213742fba2055883c8b8b806e
 | Storage | **MongoDB** | Flexible documents for requests, results, telemetry, alerts and provenance |
 
 ### 2.4 MQTT topics
@@ -481,4 +486,8 @@ Phase write-ups in [`what_I_did/`](what_I_did/):
 | [9](what_I_did/phase9.md) | Three.js digital twin |
 | [10](what_I_did/phase10.md) | real datasets and retrained models |
 | [10 (Arduino)](what_I_did/phase10_arduino.md) | live Arduino temperature sensor |
+<<<<<<< HEAD
 | [12](what_I_did/phase12_opcua.md) | OPC UA: sensor laptop → Mac bridge → MQTT |
+=======
+| [12](what_I_did/phase12_opcua.md) | OPC UA: sensor laptop → Mac bridge → MQTT |
+>>>>>>> 8cf7f94e787c25a213742fba2055883c8b8b806e
