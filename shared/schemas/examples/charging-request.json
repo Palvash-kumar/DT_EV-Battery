@@ -17,6 +17,6 @@
   },
   "environment": {
     "temperatureC": 30,
-    "source": "simulated"
+    "source": "simulation"
   }
 }
