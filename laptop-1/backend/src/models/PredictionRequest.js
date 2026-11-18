@@ -4,7 +4,7 @@ import { statusEntry } from './statusEntry.js';
 const { Schema } = mongoose;
 
 export const PREDICTION_STATUSES = ['pending', 'completed', 'failed', 'timed_out'];
-const LOCKED_PATHS = ['requestId', 'input', 'stationId', 'createdAt'];
+const LOCKED_PATHS = ['requestId', 'input', 'sensorReading', 'stationId', 'createdAt'];
 
 const inputSchema = new Schema(
   {
@@ -64,6 +64,23 @@ const predictionRequestSchema = new Schema(
     stationId: { type: String, required: true, immutable: true },
     chargerId: { type: String, default: null },
     input: { type: inputSchema, required: true, immutable: true },
+    // When input.environment.source is "sensor": the exact Arduino reading
+    // whose temperature was used, so the request can be traced to it.
+    sensorReading: {
+      type: new Schema(
+        {
+          messageId: String,
+          sensorId: String,
+          timestamp: Date,
+          temperatureC: Number,
+          quality: String,
+          calibrationStatus: String,
+        },
+        { _id: false },
+      ),
+      default: null,
+      immutable: true,
+    },
 
     status: { type: String, enum: PREDICTION_STATUSES, default: 'pending' },
     statusHistory: { type: [statusEntry], default: [] },

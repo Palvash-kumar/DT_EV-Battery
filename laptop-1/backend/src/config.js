@@ -36,6 +36,11 @@ const EnvSchema = z.object({
 
   // 60 = one real second plays one simulated minute of a simulated session.
   SIM_TIME_SCALE: z.coerce.number().min(1).max(3600).default(60),
+
+  // A real sensor reading older than this counts as offline: it can no longer
+  // be used in a request and a sensor_offline alert is raised. The Arduino
+  // sketch prints every ~2 s, so 30 s is about 13 missed readings.
+  SENSOR_STALE_SEC: z.coerce.number().int().min(5).max(3600).default(30),
 });
 
 // Turns process.env into a typed config object. Throws a readable error
@@ -74,5 +79,6 @@ export function loadConfig(env = process.env) {
     rateLimitPerMin: e.RATE_LIMIT_PER_MIN,
     predictionRateLimitPerMin: e.PREDICTION_RATE_LIMIT_PER_MIN,
     simTimeScale: e.SIM_TIME_SCALE,
+    sensorStaleSec: e.SENSOR_STALE_SEC,
   };
 }

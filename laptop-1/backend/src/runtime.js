@@ -6,6 +6,7 @@ import { IngestService } from './services/ingestService.js';
 import { MqttService } from './services/mqttClient.js';
 import { PredictionService } from './services/predictionService.js';
 import { attachRealtime } from './services/realtime.js';
+import { SensorMonitor } from './services/sensorMonitor.js';
 import { StationService } from './services/stationService.js';
 import { StationStatusService } from './services/stationStatusService.js';
 
@@ -38,11 +39,12 @@ export async function startBackend({ config, logger, port = config.port }) {
   );
 
   const mqtt = new MqttService({ config, logger });
-  const predictions = new PredictionService({ config, mqtt, logger });
+  const sensors = new SensorMonitor({ config, logger });
+  const predictions = new PredictionService({ config, mqtt, logger, sensors });
   const stationStatus = new StationStatusService({ config, mqtt, logger });
   const stations = new StationService({ config, logger });
   const ingest = new IngestService({ config, logger });
-  const services = { mqtt, predictions, stationStatus, stations, ingest };
+  const services = { mqtt, predictions, stationStatus, stations, ingest, sensors };
 
   const app = createApp({ config, logger, services });
   const server = http.createServer(app);
@@ -78,8 +80,12 @@ export async function startBackend({ config, logger, port = config.port }) {
   ingest.on('telemetry', (r) => {
     realtime.toStation(r.stationId, 'telemetry:reading', stations.readingView(r));
     publishStatusSoon();
+    if (r.source === 'sensor') {
+      sensors.check().catch((err) => log.error({ err: err.message }, 'sensor check failed'));
+    }
   });
   ingest.on('alert', (a) => realtime.broadcast('alert:update', a));
+  sensors.on('alert', (a) => realtime.broadcast('alert:update', a));
   ingest.on('health', (h) => realtime.broadcast('health:update', h));
 
   const { topics } = config;
@@ -111,6 +117,8 @@ export async function startBackend({ config, logger, port = config.port }) {
   await predictions.recoverPending();
   await stations.sweep();
   stations.start();
+  await sensors.check().catch((err) => log.error({ err: err.message }, 'sensor check failed'));
+  sensors.start();
 
   await new Promise((resolve) => server.listen(port, resolve));
   const address = server.address();
@@ -123,6 +131,7 @@ export async function startBackend({ config, logger, port = config.port }) {
     clearTimeout(statusTimer);
     predictions.stop();
     stations.stop();
+    await sensors.stop();
     if (mqtt.connected) await stationStatus.publish('offline');
     await mqtt.close();
     await realtime.close(); // also closes the HTTP server

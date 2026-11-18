@@ -317,6 +317,12 @@ export function RequestDetail() {
           <dt>Ambient temperature</dt>
           <dd>
             {environment.temperatureC} °C <SourceBadge source={environment.source} small />
+            {r.sensorReading && (
+              <span className="small muted">
+                {' '}
+                · {r.sensorReading.sensorId || 'Arduino sensor'}, read {dateTime(r.sensorReading.timestamp)}
+              </span>
+            )}
           </dd>
           <dt>Station</dt>
           <dd>{r.stationId}</dd>

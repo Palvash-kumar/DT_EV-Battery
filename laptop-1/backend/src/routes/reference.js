@@ -29,6 +29,7 @@ export function referenceRoutes({ config }) {
       limits: LIMITS,
       requestTimeoutSec: config.requestTimeoutMs / 1000,
       simTimeScale: config.simTimeScale,
+      sensor: { staleAfterSec: config.sensorStaleSec },
       labels: LABELS,
       models: modelCards(),
     });

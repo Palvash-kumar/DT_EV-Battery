@@ -984,3 +984,27 @@ legend {
     height: 360px;
   }
 }
+
+/* ---------- Arduino sensor status (New request form) ---------- */
+.sensor-status {
+  border: 1px solid var(--border, rgba(127, 127, 127, 0.3));
+  border-left-width: 4px;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.sensor-status p {
+  margin: 0.15rem 0;
+}
+.sensor-live {
+  border-left-color: var(--ok);
+}
+.sensor-suspect {
+  border-left-color: var(--warn);
+}
+.sensor-offline {
+  border-left-color: var(--bad);
+}
+.sensor-none {
+  border-left-color: var(--muted);
+}

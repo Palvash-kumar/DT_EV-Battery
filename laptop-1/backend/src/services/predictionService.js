@@ -45,6 +45,7 @@ export function toPublicPrediction(doc) {
     input: d.input,
     result: d.result,
     error: d.error,
+    sensorReading: d.sensorReading ?? null,
     sentAt: d.sentAt,
     completedAt: d.completedAt,
     timedOutAt: d.timedOutAt,
@@ -54,10 +55,11 @@ export function toPublicPrediction(doc) {
 }
 
 export class PredictionService extends EventEmitter {
-  constructor({ config, mqtt, logger }) {
+  constructor({ config, mqtt, logger, sensors = null }) {
     super();
     this.config = config;
     this.mqtt = mqtt;
+    this.sensors = sensors;
     this.log = logger.child({ component: 'predictions' });
     this.timers = new Map();
     this.seenResultMessages = new RecentIds(SEEN_LIMIT);
@@ -97,16 +99,48 @@ export class PredictionService extends EventEmitter {
     }
   }
 
+  // "Live sensor" is decided here, not by the browser: the temperature is
+  // taken from the newest stored Arduino reading, which must be recent and
+  // must have passed its checks. Otherwise the request is refused - it is
+  // never quietly filled with a simulated or typed value.
+  async liveSensorReading(stationId) {
+    const message = 'Live sensor temperature is not available';
+    if (!this.sensors) throw new AppError(409, 'SENSOR_NOT_LIVE', message);
+    const { reading, usable, reason } = await this.sensors.health(stationId);
+    if (!usable) {
+      throw new AppError(409, 'SENSOR_NOT_LIVE', `${message}. ${reason}`, [
+        { path: 'environment.temperatureSource', message: reason },
+      ]);
+    }
+    return reading;
+  }
+
   async create(body) {
     const stationId = body.stationId || this.config.stationId;
     const chargerId = body.chargerId || null;
     if (chargerId) await this.checkCharger(stationId, chargerId, body.charging);
 
+    let environment = body.environment;
+    let sensorReading = null;
+    if (environment.source === 'sensor') {
+      const r = await this.liveSensorReading(stationId);
+      environment = { temperatureC: r.temperatureC, source: 'sensor' };
+      sensorReading = {
+        messageId: r.messageId,
+        sensorId: r.sensorId,
+        timestamp: r.timestamp,
+        temperatureC: r.temperatureC,
+        quality: r.quality,
+        calibrationStatus: r.calibrationStatus,
+      };
+    }
+
     const doc = await PredictionRequest.create({
       requestId: randomUUID(),
       stationId,
       chargerId,
-      input: { vehicle: body.vehicle, charging: body.charging, environment: body.environment },
+      input: { vehicle: body.vehicle, charging: body.charging, environment },
+      sensorReading,
       status: 'pending',
       statusHistory: [entry('pending', { note: 'created from dashboard request' })],
       sentAt: new Date(),

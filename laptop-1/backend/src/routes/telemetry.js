@@ -23,7 +23,9 @@ export function telemetryRoutes({ config, stations }) {
 
   router.get('/latest', async (req, res) => {
     const q = query.parse(req.query);
-    const latest = await TelemetryReading.findOne({ stationId: q.stationId || config.stationId })
+    const filter = { stationId: q.stationId || config.stationId };
+    if (q.source) filter.source = q.source;
+    const latest = await TelemetryReading.findOne(filter)
       .sort({ timestamp: -1 })
       .lean();
     res.json(latest ? stations.readingView(latest) : null);

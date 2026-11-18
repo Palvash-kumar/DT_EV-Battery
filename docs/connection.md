@@ -12,6 +12,7 @@ How to get the two machines talking to each other over MQTT on a shared LAN, and
 |---|---|---|
 | **Laptop 2** | Mosquitto broker, Python ML worker | `1883` (MQTT) |
 | **Laptop 1** | Node/Express backend, MongoDB, React frontend | `3000` (API), `5173` (dev frontend) |
+| **Laptop with the Arduino plugged in** (normally Laptop 1) | Arduino serial gateway (`npm run gateway:arduino`) | — (it connects out to Mosquitto) |
 
 The browser only ever talks to Laptop 1 (`localhost:3000` / `localhost:5173`). Laptop 1's **backend** is the only thing that talks to Laptop 2, over MQTT. The frontend never connects to Laptop 2 directly, and nothing on Laptop 2 talks to MongoDB.
 
@@ -176,6 +177,29 @@ npm run dev
 
 Open `http://localhost:5173` in a browser **on Laptop 1**.
 
+### 3.5 On the laptop the Arduino is plugged into — start the sensor gateway (optional)
+
+Only needed for the live ambient temperature (Phase 10). Plug the Arduino UNO R4 in by USB, make sure it runs
+`laptop-1/arduino/temperature_lm35/temperature_lm35.ino`, then **close the Arduino IDE Serial Monitor** (Windows lets
+only one program read the COM port) and run:
+
+```bash
+cd laptop-1/backend
+npm run gateway:arduino
+```
+
+Expected output:
+```
+[arduino-gateway] MQTT connected to <Laptop 2's IP>:1883 as "sensor", publishing to evdt/v1/telemetry/temperature
+[arduino-gateway] serial open: reading COM6 at 9600 baud
+[arduino-gateway] 31.26 °C  LM35-A0-01  -> published (source: sensor)
+```
+
+It uses `MQTT_HOST` and the `SENSOR_*` / `ARDUINO_*` settings from `laptop-1/backend/.env` (see `.env.example`). The
+port is found automatically by the Arduino's USB vendor id; `npm run gateway:arduino -- --list` shows all ports and
+`-- --port=COM6` forces one. The **New request** page then selects **Live sensor** by itself and the temperature follows
+the board.
+
 ---
 
 ## 4. Verifying the connection
@@ -240,7 +264,7 @@ Already set up in `laptop-2/mosquitto/passwd` and `laptop-2/mosquitto/acl` — y
 |---|---|---|---|
 | `backend` | `backend_pass_2026` | `requests/charging`, `stations/+/status` | `results/*`, `telemetry/*`, `alerts` |
 | `mlworker` | `mlworker_pass_2026` | `results/*`, `alerts` | `requests/charging`, `telemetry/*` |
-| `sensor` | *(set when the Arduino gateway is built, Phase 10)* | `telemetry/temperature` | — |
+| `sensor` | `sensor_pass_2026` | `telemetry/temperature` | — |
 | `admin` | `admin_pass_2026` | everything | everything — useful for debugging with `mosquitto_sub`/`mosquitto_pub` |
 
 These are prototype credentials for a trusted LAN demo, not production secrets. Don't expose port 1883 to the public internet with these in place — see the commented-out TLS section in `mosquitto.conf` if you ever need to run this over an untrusted network.
@@ -262,6 +286,10 @@ These are prototype credentials for a trusted LAN demo, not production secrets. 
 | Dashboard shows **"Prediction request not found"** right after switching databases | The browser is on an old request link from the previous database (e.g. local MongoDB). Each database has its own requests | Go to **New request** and send a new one. Old links only work against the database they were created in |
 | Atlas works, but there are no charger bays / empty history | `npm run db:setup` was only ever run against the local database | Run `npm run db:setup` in `laptop-1/backend` once with the Atlas `MONGODB_URI` in `.env` |
 | Data lands in an Atlas database called `test` | The connection string ends in `...mongodb.net/` with no database name, so MongoDB uses `test` | Put a name after the slash: `...mongodb.net/evdt` |
+| Gateway says `COM6 is in use by another program` | The Arduino IDE Serial Monitor or Serial Plotter has the port open | Close that tab. The gateway retries every 5 s and opens the port by itself |
+| Gateway says `an Arduino not found on any serial port` | USB cable unplugged, or a charge-only cable | Plug it in; check `npm run gateway:arduino -- --list` |
+| Gateway prints `REJECTED reading ... check the sensor wiring` | The LM35 output wire to A0 is loose (A0 floating reads anything up to ~500 °C) | Re-seat the sensor wires; nothing is published until values make sense |
+| New request page says **Sensor offline** | No real reading for 30 s (`SENSOR_STALE_SEC`); a `sensor_offline` alert is also on the Alerts page | Start the gateway (§3.5) / re-plug USB. The alert resolves itself when readings return |
 | Request works once, then subsequent ones hang | Python worker crashed after the first message (check its terminal) | Restart `python main.py` on Laptop 2 |
 
 ---
@@ -291,7 +319,7 @@ The backend does not need it. Run it in its own terminal only when you want the 
 
 Order doesn't matter much, but this is the clean sequence:
 
-1. Stop the frontend (`Ctrl+C` in its terminal).
+1. Stop the frontend (`Ctrl+C` in its terminal), and the Arduino gateway if it runs.
 2. Stop the backend (`Ctrl+C`) — it publishes a retained "offline" station status and disconnects cleanly.
 3. Stop the Python worker on Laptop 2 (`Ctrl+C`) — it publishes a Last Will "offline" message automatically if it's killed instead.
 4. Stop Mosquitto on Laptop 2 (`Ctrl+C`).
@@ -305,3 +333,4 @@ Order doesn't matter much, but this is the clean sequence:
 - `what_I_did/phase4.md` — how the Mosquitto config and message contracts were built
 - `what_I_did/phase5.md` — how the Python ML worker was built and tested
 - `what_I_did/phase6.md` — how the Laptop 1 backend's MQTT client, timeout and retry logic work
+- `what_I_did/phase10_arduino.md` — the live Arduino temperature sensor and its gateway

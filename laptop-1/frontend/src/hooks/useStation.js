@@ -13,7 +13,11 @@ export function useStation(stationId) {
     const socket = getSocket();
     const leave = joinRoom({ stationId });
     const onStation = (view) => setData(view);
-    const onReading = (reading) => setData((v) => (v ? { ...v, telemetry: reading } : v));
+    // sensorTelemetry only ever holds a real Arduino reading (source "sensor").
+    const onReading = (reading) =>
+      setData((v) =>
+        v ? { ...v, telemetry: reading, ...(reading.source === 'sensor' ? { sensorTelemetry: reading } : {}) } : v,
+      );
     // after a reconnect we may have missed events; fetch a fresh copy
     const onReconnect = () => reload();
     socket.on('station:update', onStation);

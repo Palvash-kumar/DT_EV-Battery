@@ -37,10 +37,13 @@ export class StationService extends EventEmitter {
   async view(stationId) {
     const station = await Station.findOne({ stationId }, { _id: 0, __v: 0 }).lean();
     if (!station) throw notFound('Station');
-    const [chargers, sessions, latest] = await Promise.all([
+    const [chargers, sessions, latest, latestSensor] = await Promise.all([
       Charger.find({ stationId }, { _id: 0, __v: 0 }).sort({ bay: 1 }).lean(),
       ChargingSession.find({ stationId, source: 'simulation', status: 'active' }).lean(),
       TelemetryReading.findOne({ stationId }).sort({ timestamp: -1 }).lean(),
+      // The newest REAL Arduino reading, kept apart so a running simulator
+      // can never hide it or stand in for it.
+      TelemetryReading.findOne({ stationId, source: 'sensor' }).sort({ timestamp: -1 }).lean(),
     ]);
     const bySession = new Map(sessions.map((s) => [s.sessionId, s]));
     return {
@@ -50,6 +53,7 @@ export class StationService extends EventEmitter {
         return { ...c, session: s ? this.sessionView(s) : null };
       }),
       telemetry: latest ? this.readingView(latest) : null,
+      sensorTelemetry: latestSensor ? this.readingView(latestSensor) : null,
       generatedAt: new Date().toISOString(),
     };
   }
@@ -64,6 +68,8 @@ export class StationService extends EventEmitter {
       quality: r.quality,
       qualityNotes: r.qualityNotes,
       sensorId: r.sensorId,
+      calibrationStatus: r.calibrationStatus,
+      messageId: r.messageId,
       timestamp: r.timestamp,
       ageSec: Math.round((Date.now() - new Date(r.timestamp).getTime()) / 1000),
     };

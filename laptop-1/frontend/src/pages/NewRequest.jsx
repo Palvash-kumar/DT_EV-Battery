@@ -1,14 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { Lifecycle } from '../components/Lifecycle.jsx';
 import { Notice } from '../components/Notice.jsx';
+import { SensorStatus } from '../components/SensorStatus.jsx';
 import { SourceBadge } from '../components/SourceBadge.jsx';
 import { ErrorBox, Loading } from '../components/States.jsx';
 import { useMeta } from '../hooks/MetaContext.jsx';
 import { useApi } from '../hooks/useApi.js';
+import { useNow } from '../hooks/useNow.js';
 import { useStation } from '../hooks/useStation.js';
 import { num } from '../lib/format.js';
+import { sensorHealth } from '../lib/sensorHealth.js';
 import { serverFieldErrors, toRequestBody, validateRequest } from '../lib/validateRequest.js';
 
 const START = {
@@ -63,16 +66,39 @@ export function NewRequest() {
   const [errors, setErrors] = useState({});
   const [stage, setStage] = useState('draft');
   const [submitError, setSubmitError] = useState(null);
+  // Until the user picks a temperature source, the form uses the live
+  // Arduino sensor whenever it is available.
+  const [sourceTouched, setSourceTouched] = useState(false);
+  const now = useNow(1000);
 
   const chargers = station.data?.chargers || [];
   const charger = chargers.find((c) => c.chargerId === form.chargerId);
-  const reading = station.data?.telemetry;
-  const liveSensor = reading && reading.source === 'sensor' && reading.ageSec <= 120 ? reading : null;
+  // Only ever a real Arduino reading (source "sensor"), never a simulated one.
+  const sensorReading = station.data?.sensorTelemetry || null;
+  const health = sensorHealth(sensorReading, meta?.sensor?.staleAfterSec, now);
+  const liveSensor = health.usable ? sensorReading : null;
+  const sensorOffered = Boolean(meta?.enums?.temperatureSources?.includes('sensor'));
   const socDelta = Number(form.targetSocPct) - Number(form.startSocPct);
   const roughEnergy = useMemo(
     () => (Number(form.batteryCapacityKwh) * socDelta) / 100,
     [form.batteryCapacityKwh, socDelta],
   );
+
+  // Select "Live sensor" by default as soon as a live reading exists.
+  useEffect(() => {
+    if (!sourceTouched && sensorOffered && liveSensor && form.temperatureSource !== 'sensor') {
+      setForm((f) => ({ ...f, temperatureSource: 'sensor', temperatureC: String(liveSensor.temperatureC) }));
+    }
+  }, [sourceTouched, sensorOffered, liveSensor, form.temperatureSource]);
+
+  // While "Live sensor" is selected, the temperature follows every new reading.
+  const liveId = liveSensor?.messageId;
+  const liveValue = liveSensor?.temperatureC;
+  useEffect(() => {
+    if (form.temperatureSource !== 'sensor' || liveValue === undefined) return;
+    setForm((f) => (f.temperatureC === String(liveValue) ? f : { ...f, temperatureC: String(liveValue) }));
+    setErrors((er) => (er.temperatureSource || er.temperatureC ? { ...er, temperatureSource: undefined, temperatureC: undefined } : er));
+  }, [form.temperatureSource, liveId, liveValue]);
 
   if (metaLoading) return <Loading what="form" />;
   if (metaError) return <ErrorBox error={metaError} />;
@@ -104,7 +130,9 @@ export function NewRequest() {
 
   const pickSource = (e) => {
     const source = e.target.value;
+    setSourceTouched(true);
     setForm((f) => ({ ...f, temperatureSource: source, ...(source === 'sensor' && liveSensor ? { temperatureC: String(liveSensor.temperatureC) } : {}) }));
+    setErrors((er) => ({ ...er, temperatureSource: undefined }));
   };
 
   const submit = async (e) => {
@@ -112,7 +140,7 @@ export function NewRequest() {
     setSubmitError(null);
     const found = validateRequest(form, meta, charger);
     if (form.temperatureSource === 'sensor' && !liveSensor) {
-      found.temperatureSource = 'No live sensor reading in the last 2 minutes. Use manual or simulated.';
+      found.temperatureSource = `${health.reason} Choose manual or simulated, or fix the sensor.`;
     }
     setErrors(found);
     if (Object.keys(found).length) return;
@@ -206,17 +234,28 @@ export function NewRequest() {
 
         <fieldset>
           <legend>Environment</legend>
+          {sensorOffered && <SensorStatus reading={sensorReading} health={health} now={now} />}
           <Field id="temperatureSource" label="Temperature comes from" error={errors.temperatureSource}>
             <select id="temperatureSource" value={form.temperatureSource} onChange={pickSource} aria-describedby={describe('temperatureSource')}>
               {meta.enums.temperatureSources.map((s) => (
-                <option key={s} value={s} disabled={s === 'sensor' && !liveSensor}>
+                <option key={s} value={s} disabled={s === 'sensor' && !liveSensor && form.temperatureSource !== 'sensor'}>
                   {SOURCE_TEXT[s] || s}
-                  {s === 'sensor' && !liveSensor ? ' — no live reading' : ''}
+                  {s === 'sensor' && !liveSensor ? ' — not available' : ''}
                 </option>
               ))}
             </select>
           </Field>
-          <Field id="temperatureC" label="Ambient temperature" unit="°C" error={errors.temperatureC} hint="Air temperature at the charger, not battery temperature.">
+          <Field
+            id="temperatureC"
+            label="Ambient temperature"
+            unit="°C"
+            error={errors.temperatureC}
+            hint={
+              form.temperatureSource === 'sensor'
+                ? 'Follows the Arduino reading live. When you send, the server uses its newest sensor reading. Air temperature at the charger, not battery temperature.'
+                : 'Air temperature at the charger, not battery temperature.'
+            }
+          >
             <input id="temperatureC" type="number" inputMode="decimal" step="0.1" value={form.temperatureC} onChange={set('temperatureC')} readOnly={form.temperatureSource === 'sensor'} aria-invalid={Boolean(errors.temperatureC)} aria-describedby={describe('temperatureC')} />
           </Field>
           <p className="badges">
@@ -236,7 +275,7 @@ export function NewRequest() {
           <button className="btn btn-primary" type="submit" disabled={stage === 'sent'}>
             {stage === 'sent' ? 'Sending…' : 'Send request'}
           </button>
-          <button className="btn" type="button" onClick={() => { setForm(START); setErrors({}); }}>
+          <button className="btn" type="button" onClick={() => { setForm(START); setErrors({}); setSourceTouched(false); }}>
             Reset
           </button>
         </div>

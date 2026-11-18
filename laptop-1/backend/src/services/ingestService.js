@@ -9,6 +9,13 @@ import { entry } from '../models/statusEntry.js';
 const AMBIENT_MIN_C = -30;
 const AMBIENT_MAX_C = 55;
 const FUTURE_SKEW_MS = 2 * 60 * 1000;
+// Air around a charger does not change by a degree per second. A faster jump
+// between two readings of the same sensor usually means a loose wire or a
+// floating analog pin. Compared with the last reading of that sensor that
+// passed its checks, if it is less than a minute old - so one glitch does not
+// become the baseline, and a real lasting change is accepted after a minute.
+export const MAX_RATE_C_PER_S = 1;
+const RATE_WINDOW_MS = 60 * 1000;
 
 const isDuplicateKey = (err) => err?.code === 11000;
 
@@ -28,6 +35,8 @@ export class IngestService extends EventEmitter {
     this.config = config;
     this.log = logger.child({ component: 'ingest' });
     this.stats = { telemetry: 0, alerts: 0, health: 0, duplicates: 0, rejected: 0 };
+    // Last reading per sensor that passed its checks, for the rate-of-change check.
+    this.lastReading = new Map();
   }
 
   reject(kind, reason, extra = {}) {
@@ -37,13 +46,27 @@ export class IngestService extends EventEmitter {
   }
 
   // Quality is decided here, once, and stored with the reading.
-  static assessReading(msg, now = Date.now()) {
+  // `previous` is the last reading from the same sensor ({ timestamp, temperatureC }).
+  static assessReading(msg, now = Date.now(), previous = null) {
     const notes = [];
     let quality = msg.calibrationStatus === 'calibrated' ? 'good' : 'unknown';
     if (msg.calibrationStatus !== 'calibrated') notes.push(`sensor calibration: ${msg.calibrationStatus || 'unknown'}`);
     if (msg.temperatureC < AMBIENT_MIN_C || msg.temperatureC > AMBIENT_MAX_C) {
       quality = 'suspect';
       notes.push(`outside plausible ambient range ${AMBIENT_MIN_C}..${AMBIENT_MAX_C} °C`);
+    }
+    if (previous) {
+      const dtMs = new Date(msg.timestamp).getTime() - new Date(previous.timestamp).getTime();
+      if (dtMs > 0 && dtMs <= RATE_WINDOW_MS) {
+        const delta = msg.temperatureC - previous.temperatureC;
+        const rate = Math.abs(delta) / Math.max(dtMs / 1000, 1);
+        if (rate > MAX_RATE_C_PER_S) {
+          quality = 'suspect';
+          notes.push(
+            `changed ${delta > 0 ? '+' : ''}${delta.toFixed(2)} °C in ${(dtMs / 1000).toFixed(1)} s (limit ${MAX_RATE_C_PER_S} °C/s)`,
+          );
+        }
+      }
     }
     if (new Date(msg.timestamp).getTime() - now > FUTURE_SKEW_MS) {
       quality = 'suspect';
@@ -62,7 +85,8 @@ export class IngestService extends EventEmitter {
     const contract = check('telemetryTemperature', msg);
     if (!contract.ok) return this.reject('telemetry', contract.message);
 
-    const { quality, qualityNotes } = IngestService.assessReading(msg);
+    const key = `${msg.stationId}|${msg.source}|${msg.sensorId ?? ''}`;
+    const { quality, qualityNotes } = IngestService.assessReading(msg, Date.now(), this.lastReading.get(key));
     try {
       const doc = await TelemetryReading.create({
         messageId: msg.messageId,
@@ -75,6 +99,11 @@ export class IngestService extends EventEmitter {
         quality,
         qualityNotes,
       });
+      const prev = this.lastReading.get(key);
+      const passed = quality !== 'suspect' && quality !== 'bad';
+      if (passed && (!prev || new Date(msg.timestamp) > new Date(prev.timestamp))) {
+        this.lastReading.set(key, { timestamp: msg.timestamp, temperatureC: msg.temperatureC });
+      }
       this.stats.telemetry += 1;
       this.emit('telemetry', doc.toObject());
       return { outcome: 'stored', doc };
