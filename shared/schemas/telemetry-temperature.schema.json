@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "evdt/v1/telemetry-temperature.schema.json",
   "title": "Temperature Telemetry Reading",
-  "description": "Published to evdt/v1/telemetry/temperature by Arduino sensor gateway or simulator.",
+  "description": "Published to evdt/v1/telemetry/temperature by the Mac's OPC UA bridge (real Arduino sensor, source \"sensor\") or by the simulator (source \"simulation\").",
   "type": "object",
   "required": ["schemaVersion", "messageId", "stationId", "timestamp", "temperatureC", "source"],
   "additionalProperties": false,

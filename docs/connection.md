@@ -1,6 +1,6 @@
-# Connecting Laptop 1 and Laptop 2
+# Connecting Laptop 1, Laptop 2 and the sensor laptop
 
-How to get the two machines talking to each other over MQTT on a shared LAN, and how to check it's actually working.
+How to get the machines talking to each other (MQTT, plus OPC UA for the live Arduino temperature) on a shared LAN, and how to check it's actually working.
 
 > **Read this if:** you're setting up the two-laptop demo for the first time, the backend logs show it isn't connected to the broker, or a request on the dashboard gets stuck on "Processing" and then times out.
 
@@ -12,15 +12,23 @@ How to get the two machines talking to each other over MQTT on a shared LAN, and
 |---|---|---|
 | **Laptop 2** | Mosquitto broker, Python ML worker | `1883` (MQTT) |
 | **Laptop 1** | Node/Express backend, MongoDB, React frontend | `3000` (API), `5173` (dev frontend) |
-| **Laptop with the Arduino plugged in** (normally Laptop 1) | Arduino serial gateway (`npm run gateway:arduino`) | — (it connects out to Mosquitto) |
+| **Sensor laptop** (Windows, Arduino on USB) | OPC UA server for the Arduino temperature (`laptop-sensor`, `npm run opcua:server`) | `4840` (OPC UA) |
+| **Laptop 2** (also) | OPC UA → MQTT bridge (`python opcua_bridge/bridge.py`) | — (connects out to the sensor laptop and to its own Mosquitto) |
+
+> With three laptops, the names used in this doc map to yours as: **Sensor laptop** = your Laptop 1 (Windows + Arduino), **Laptop 2** = the Mac, **Laptop 1** here = your Laptop 3 (Windows, frontend + backend). The repo folders keep the old names: `laptop-sensor/` (sensor), `laptop-2/` (Mac), `laptop-1/` (web).
 
 The browser only ever talks to Laptop 1 (`localhost:3000` / `localhost:5173`). Laptop 1's **backend** is the only thing that talks to Laptop 2, over MQTT. The frontend never connects to Laptop 2 directly, and nothing on Laptop 2 talks to MongoDB.
 
 ```
 Browser --HTTP/WebSocket--> Laptop 1 backend --MQTT--> Laptop 2 (Mosquitto + Python worker)
+
+Arduino --USB--> Sensor laptop (OPC UA server) --OPC UA--> Laptop 2 (bridge) --MQTT--> Laptop 1 backend
 ```
 
-Both laptops must be on the **same network** (same Wi-Fi SSID / same router / same LAN), not on separate guest networks or different subnets — MQTT here is plain TCP on the local network, not over the internet.
+The live temperature takes the second path. It reaches Laptop 2's ML worker inside a charging request, when the
+request uses **Live sensor**. The full design is in [`OPC-UA_implementation-plan.md`](../OPC-UA_implementation-plan.md).
+
+All laptops must be on the **same network** (same Wi-Fi SSID / same router / same LAN), not on separate guest networks or different subnets — MQTT here is plain TCP on the local network, not over the internet.
 
 ---
 
@@ -177,28 +185,67 @@ npm run dev
 
 Open `http://localhost:5173` in a browser **on Laptop 1**.
 
-### 3.5 On the laptop the Arduino is plugged into — start the sensor gateway (optional)
+### 3.5 Sensor laptop — start the OPC UA server (live Arduino temperature, optional)
 
-Only needed for the live ambient temperature (Phase 10). Plug the Arduino UNO R4 in by USB, make sure it runs
-`laptop-1/arduino/temperature_lm35/temperature_lm35.ino`, then **close the Arduino IDE Serial Monitor** (Windows lets
-only one program read the COM port) and run:
+Only needed for the live ambient temperature. One-time setup on the sensor laptop:
+
+| Step | Command / action |
+|---|---|
+| Node.js 20+ | `node -v` |
+| Install | `cd laptop-sensor` then `npm install` |
+| Settings | `copy .env.example .env` (first time only; defaults are fine) |
+| Firewall | PowerShell **as administrator**: `New-NetFirewallRule -DisplayName "EVDT OPC UA 4840" -Direction Inbound -Protocol TCP -LocalPort 4840 -Action Allow -Profile Private`. If Windows asks whether to allow Node.js on first start, allow **Private networks** |
+| Fixed IP | Reserve its IP on the router (DHCP reservation), so the Mac's `OPCUA_URL` stays valid |
+
+Every time: plug the Arduino in (sketch `laptop-1/arduino/temperature_lm35/temperature_lm35.ino`), **close the
+Arduino IDE Serial Monitor** (only one program can read the COM port), then:
 
 ```bash
-cd laptop-1/backend
-npm run gateway:arduino
+cd laptop-sensor
+npm run opcua:server
 ```
 
 Expected output:
 ```
-[arduino-gateway] MQTT connected to <Laptop 2's IP>:1883 as "sensor", publishing to evdt/v1/telemetry/temperature
-[arduino-gateway] serial open: reading COM6 at 9600 baud
-[arduino-gateway] 31.26 °C  LM35-A0-01  -> published (source: sensor)
+[sensor] OPC UA server running. Security: none, anonymous, read-only (LAN demo).
+[sensor] Endpoints for the Mac bridge (OPCUA_URL in laptop-2/opcua_bridge/.env):
+[sensor]    opc.tcp://<sensor laptop IP>:4840/evdt
+[sensor] serial open: reading COM6 at 9600 baud
+[sensor] sensor live (31.26 °C)
+[sensor] 31.26 °C  LM35-A0-01  -> OPC UA TemperatureC (Good)
 ```
 
-It uses `MQTT_HOST` and the `SENSOR_*` / `ARDUINO_*` settings from `laptop-1/backend/.env` (see `.env.example`). The
-port is found automatically by the Arduino's USB vendor id; `npm run gateway:arduino -- --list` shows all ports and
-`-- --port=COM6` forces one. The **New request** page then selects **Live sensor** by itself and the temperature follows
-the board.
+The value is updated every 5 s (`SENSOR_PUBLISH_INTERVAL_SEC`). `npm run list-ports` shows the serial ports;
+`npm run opcua:server -- --port=COM6` forces one.
+
+### 3.6 Laptop 2 (Mac) — start the OPC UA → MQTT bridge (optional)
+
+One-time setup on the Mac:
+
+| Step | Command |
+|---|---|
+| Install the OPC UA library | `cd laptop-2 && source .venv/bin/activate && pip install -r requirements.txt` (adds `asyncua==2.1.0`) |
+| Settings | `cp opcua_bridge/.env.example opcua_bridge/.env`, then set `OPCUA_URL=opc.tcp://<sensor laptop IP>:4840/evdt` (the URL the sensor laptop prints) |
+| Broker user | `opcbridge` is already in `mosquitto/passwd` and `mosquitto/acl`. Restart Mosquitto once after pulling these files |
+
+Every time (new terminal, venv active):
+
+```bash
+cd laptop-2
+python opcua_bridge/bridge.py
+```
+
+Expected output:
+```
+INFO [opcua_bridge] MQTT connected to 127.0.0.1:1883 as 'opcbridge', publishing to evdt/v1/telemetry/temperature
+INFO [opcua_bridge] clock difference with the sensor laptop: 0.0 s (ok)
+INFO [opcua_bridge] OPC UA connected to opc.tcp://<sensor IP>:4840/evdt: station STATION-001, sensor LM35-A0-01 (uncalibrated); subscribed to TemperatureC
+INFO [opcua_bridge] 31.26 °C  LM35-A0-01  (read 2026-11-18T18:18:02.307Z) -> MQTT evdt/v1/telemetry/temperature
+```
+
+Laptop 1 needs nothing new: its backend already subscribes to `evdt/v1/telemetry/temperature`. The **New request**
+page then selects **Live sensor** by itself and the temperature follows the board every ~5 s. Start order does not
+matter: the bridge keeps retrying until the sensor laptop and the broker are reachable.
 
 ---
 
@@ -264,7 +311,8 @@ Already set up in `laptop-2/mosquitto/passwd` and `laptop-2/mosquitto/acl` — y
 |---|---|---|---|
 | `backend` | `backend_pass_2026` | `requests/charging`, `stations/+/status` | `results/*`, `telemetry/*`, `alerts` |
 | `mlworker` | `mlworker_pass_2026` | `results/*`, `alerts` | `requests/charging`, `telemetry/*` |
-| `sensor` | `sensor_pass_2026` | `telemetry/temperature` | — |
+| `sensor` | `sensor_pass_2026` | `telemetry/temperature` | — (used by the temperature simulator) |
+| `opcbridge` | `opcbridge_pass_2026` | `telemetry/temperature` | — (the Mac's OPC UA bridge, real Arduino readings) |
 | `admin` | `admin_pass_2026` | everything | everything — useful for debugging with `mosquitto_sub`/`mosquitto_pub` |
 
 These are prototype credentials for a trusted LAN demo, not production secrets. Don't expose port 1883 to the public internet with these in place — see the commented-out TLS section in `mosquitto.conf` if you ever need to run this over an untrusted network.
@@ -286,10 +334,14 @@ These are prototype credentials for a trusted LAN demo, not production secrets. 
 | Dashboard shows **"Prediction request not found"** right after switching databases | The browser is on an old request link from the previous database (e.g. local MongoDB). Each database has its own requests | Go to **New request** and send a new one. Old links only work against the database they were created in |
 | Atlas works, but there are no charger bays / empty history | `npm run db:setup` was only ever run against the local database | Run `npm run db:setup` in `laptop-1/backend` once with the Atlas `MONGODB_URI` in `.env` |
 | Data lands in an Atlas database called `test` | The connection string ends in `...mongodb.net/` with no database name, so MongoDB uses `test` | Put a name after the slash: `...mongodb.net/evdt` |
-| Gateway says `COM6 is in use by another program` | The Arduino IDE Serial Monitor or Serial Plotter has the port open | Close that tab. The gateway retries every 5 s and opens the port by itself |
-| Gateway says `an Arduino not found on any serial port` | USB cable unplugged, or a charge-only cable | Plug it in; check `npm run gateway:arduino -- --list` |
-| Gateway prints `REJECTED reading ... check the sensor wiring` | The LM35 output wire to A0 is loose (A0 floating reads anything up to ~500 °C) | Re-seat the sensor wires; nothing is published until values make sense |
-| New request page says **Sensor offline** | No real reading for 30 s (`SENSOR_STALE_SEC`); a `sensor_offline` alert is also on the Alerts page | Start the gateway (§3.5) / re-plug USB. The alert resolves itself when readings return |
+| Sensor laptop says `COM6 is in use by another program` | The Arduino IDE Serial Monitor or Serial Plotter has the port open | Close that tab. The server retries every 5 s and opens the port by itself |
+| Sensor laptop says `an Arduino not found on any serial port` | USB cable unplugged, or a charge-only cable | Plug it in; check `npm run list-ports` in `laptop-sensor` |
+| Sensor laptop prints `REJECTED reading ... check the sensor wiring` | The LM35 output wire to A0 is loose (A0 floating reads anything up to ~500 °C) | Re-seat the sensor wires; nothing is served until values make sense |
+| Sensor laptop says `could not start the OPC UA server ... EADDRINUSE` | Another copy of the server already runs | Close the other terminal (or Task Manager → node.exe) |
+| Bridge says `refused the network connection` / timeout to `opc.tcp://...` | Sensor server not running, wrong IP in `OPCUA_URL`, or the sensor laptop's firewall blocks 4840 | Start it (§3.5); compare `OPCUA_URL` with the URL it prints; add the firewall rule from §3.5. From the Mac: `nc -zv <sensor IP> 4840` |
+| Bridge says `MQTT login ... refused` | `opcbridge` missing on the running broker | Pull the latest `mosquitto/passwd` and `acl`, restart Mosquitto |
+| Bridge says `clock difference with the sensor laptop is ... s` | The laptops' clocks disagree, so live readings may look old on Laptop 1 | Turn on automatic time sync on all laptops (Windows: Settings → Time & language → Sync now) |
+| New request page says **Sensor offline** | No real reading reached Laptop 1 for 30 s (`SENSOR_STALE_SEC`); a `sensor_offline` alert is also on the Alerts page | Check the chain: USB → `npm run opcua:server` (§3.5) → `python opcua_bridge/bridge.py` (§3.6). The alert resolves itself when readings return |
 | Request works once, then subsequent ones hang | Python worker crashed after the first message (check its terminal) | Restart `python main.py` on Laptop 2 |
 
 ---
@@ -319,7 +371,7 @@ The backend does not need it. Run it in its own terminal only when you want the 
 
 Order doesn't matter much, but this is the clean sequence:
 
-1. Stop the frontend (`Ctrl+C` in its terminal), and the Arduino gateway if it runs.
+1. Stop the frontend (`Ctrl+C` in its terminal), the Mac's OPC UA bridge and the sensor laptop's OPC UA server if they run.
 2. Stop the backend (`Ctrl+C`) — it publishes a retained "offline" station status and disconnects cleanly.
 3. Stop the Python worker on Laptop 2 (`Ctrl+C`) — it publishes a Last Will "offline" message automatically if it's killed instead.
 4. Stop Mosquitto on Laptop 2 (`Ctrl+C`).
@@ -333,4 +385,5 @@ Order doesn't matter much, but this is the clean sequence:
 - `what_I_did/phase4.md` — how the Mosquitto config and message contracts were built
 - `what_I_did/phase5.md` — how the Python ML worker was built and tested
 - `what_I_did/phase6.md` — how the Laptop 1 backend's MQTT client, timeout and retry logic work
-- `what_I_did/phase10_arduino.md` — the live Arduino temperature sensor and its gateway
+- `what_I_did/phase10_arduino.md` — the live Arduino temperature sensor (backend side)
+- `what_I_did/phase12_opcua.md` — the OPC UA path: sensor laptop → Mac bridge → MQTT

@@ -73,7 +73,7 @@ export class SensorMonitor extends EventEmitter {
         staleAfterSec: this.staleAfterSec,
       },
       recommendedAction:
-        'Check the Arduino USB cable and sensor wiring, and that "npm run gateway:arduino" is running on the laptop the Arduino is plugged into (with the Arduino IDE Serial Monitor closed). No simulated value is used in its place.',
+        'Check the chain: Arduino USB cable and sensor wiring on the sensor laptop, "npm run opcua:server" running there (Arduino IDE Serial Monitor closed), and "python opcua_bridge/bridge.py" running on the Mac. No simulated value is used in its place.',
       status: 'open',
       firstSeenAt: at,
       lastSeenAt: at,

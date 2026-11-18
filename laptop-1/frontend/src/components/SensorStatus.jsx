@@ -33,8 +33,8 @@ export function SensorStatus({ reading, health, now }) {
       )}
       {(health.state === 'offline' || health.state === 'none') && (
         <p className="small muted">
-          Start it on the laptop the Arduino is plugged into: <code>npm run gateway:arduino</code> in <code>laptop-1/backend</code>, with
-          the Arduino IDE Serial Monitor closed.
+          Check the chain: on the sensor laptop <code>npm run opcua:server</code> in <code>laptop-sensor</code> (Arduino IDE Serial
+          Monitor closed), and on the Mac <code>python opcua_bridge/bridge.py</code> in <code>laptop-2</code>.
         </p>
       )}
     </div>

@@ -6,6 +6,11 @@ reaches the dashboard live, labelled **Live sensor**. On the **New request** pag
 
 (`phase10.md` in this folder covers the dataset retraining done before this.)
 
+> **Update (Phase 12, OPC UA):** the Arduino no longer reaches MQTT through `npm run gateway:arduino`. That gateway was
+> removed. The serial reading moved to `laptop-sensor/`, which serves the value as an **OPC UA server**; the Mac's
+> `laptop-2/opcua_bridge` publishes it to MQTT. Everything on the backend and dashboard side described below (checks,
+> sensor health, offline alert, "Live sensor" in the form) is unchanged. See `phase12_opcua.md`.
+
 ---
 
 ## 1. Hardware

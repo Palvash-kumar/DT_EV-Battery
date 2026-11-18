@@ -58,7 +58,7 @@ describe('sensor health (frontend copy of the backend rule)', () => {
     const r = sensorReading(31, 45);
     render(<SensorStatus reading={r} health={sensorHealth(r, 30)} now={Date.now()} />);
     expect(screen.getByText(/Sensor offline/)).toBeInTheDocument();
-    expect(screen.getByText(/gateway:arduino/)).toBeInTheDocument();
+    expect(screen.getByText(/opcua:server/)).toBeInTheDocument();
   });
 });
 

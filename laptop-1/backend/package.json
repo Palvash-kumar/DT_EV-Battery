@@ -15,7 +15,6 @@
     "dev:stub-worker": "node scripts/stub-worker.js",
     "test": "node --test --test-concurrency=1 --test-timeout=30000 \"test/**/*.test.js\"",
     "dev:sim-telemetry": "node scripts/sim-telemetry.js",
-    "gateway:arduino": "node scripts/arduino-gateway.js",
     "db:init": "node scripts/db.js init",
     "db:seed": "node scripts/db.js seed",
     "db:import-csv": "node scripts/db.js import-csv",
@@ -35,7 +34,6 @@
     "mqtt": "^5.16.1",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
-    "serialport": "^13.0.0",
     "socket.io": "^4.8.4",
     "zod": "^4.6.7"
   },

@@ -75,7 +75,8 @@ export function Telemetry() {
 
       <Notice tone="warn" title="This is air temperature, not battery temperature">
         The sensor sits in the charger area and measures ambient temperature. It says nothing about the temperature of the cells inside
-        a car. Until the Arduino gateway is running (Phase 10), readings here come from the simulator and are marked as simulated.
+        a car. Real readings come from the Arduino over OPC UA (sensor laptop → Mac bridge → MQTT) and are marked as live sensor;
+        readings from the simulator are marked as simulated.
       </Notice>
 
       <div className="grid stats">
@@ -94,7 +95,8 @@ export function Telemetry() {
         <ErrorBox error={history.error} onRetry={history.reload} />
         {rows.length === 0 && (
           <Empty>
-            No readings yet. Start the sensor gateway, or for testing run <code>npm run dev:sim-telemetry</code> in{' '}
+            No readings yet. Start the sensor laptop&apos;s OPC UA server and the Mac&apos;s bridge, or for testing run{' '}
+            <code>npm run dev:sim-telemetry</code> in{' '}
             <code>laptop-1/backend</code> (those readings are labelled simulated).
           </Empty>
         )}

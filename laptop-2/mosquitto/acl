@@ -7,7 +7,8 @@
 # Users:
 #   backend  — Laptop 1 Node.js/Express backend
 #   mlworker — Laptop 2 Python inference service
-#   sensor   — Arduino temperature gateway
+#   sensor   — temperature simulator (sim-telemetry); was the direct Arduino gateway before OPC UA
+#   opcbridge — Mac OPC UA -> MQTT bridge for the real Arduino sensor
 #   admin    — development/debugging
 
 # ── backend (Laptop 1) ───────────────────────────────────────
@@ -37,9 +38,14 @@ topic write evdt/v1/alerts
 # Reads temperature telemetry (for context)
 topic read evdt/v1/telemetry/temperature
 
-# ── sensor (Arduino gateway) ─────────────────────────────────
+# ── sensor (temperature simulator) ─────────────────────────────
 user sensor
 # Only publishes temperature readings
+topic write evdt/v1/telemetry/temperature
+
+# ── opcbridge (Mac OPC UA -> MQTT bridge) ─────────────────────
+user opcbridge
+# Only publishes real Arduino readings received over OPC UA from the sensor laptop
 topic write evdt/v1/telemetry/temperature
 
 # ── admin (development/debugging) ────────────────────────────

@@ -15,7 +15,7 @@ export function sensorHealth(reading, staleAfterSec, now = Date.now()) {
       state: 'offline',
       usable: false,
       ageSec,
-      reason: `The last Arduino sensor reading is ${ageSec} s old (limit ${staleAfterSec} s). Is the gateway running and the USB cable plugged in?`,
+      reason: `The last Arduino sensor reading is ${ageSec} s old (limit ${staleAfterSec} s). Is the sensor laptop's OPC UA server running, the Mac's bridge running and the USB cable plugged in?`,
     };
   }
   if (reading.quality === 'suspect' || reading.quality === 'bad') {

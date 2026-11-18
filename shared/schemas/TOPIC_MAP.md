@@ -24,7 +24,7 @@ evdt/v1/
 │   ├── health                # Laptop 2 → Laptop 1 (SOH/RUL estimate)
 │   └── optimization          # Laptop 2 → Laptop 1 (smart-charging plan)
 ├── telemetry/
-│   └── temperature           # Arduino gateway → both (ambient temp reading)
+│   └── temperature           # Mac OPC UA bridge (real Arduino) or simulator → both (ambient temp reading)
 ├── alerts                    # Any service → Laptop 1 (anomalies/faults)
 └── stations/
     └── {stationId}/
@@ -39,7 +39,7 @@ evdt/v1/
 | `evdt/v1/results/charging` | 1 | No | mlworker | backend | `charging-result.schema.json` |
 | `evdt/v1/results/health` | 1 | No | mlworker | backend | `health-result.schema.json` |
 | `evdt/v1/results/optimization` | 1 | No | mlworker | backend | *(Phase 11)* |
-| `evdt/v1/telemetry/temperature` | 1 | No | sensor | backend, mlworker | `telemetry-temperature.schema.json` |
+| `evdt/v1/telemetry/temperature` | 1 | No | opcbridge (real sensor), sensor (simulator) | backend, mlworker | `telemetry-temperature.schema.json` |
 | `evdt/v1/alerts` | 1 | No | mlworker | backend | `alert.schema.json` |
 | `evdt/v1/stations/{id}/status` | 1 | **Yes** | backend | clients | `station-status.schema.json` |
 
@@ -79,5 +79,6 @@ Only `stations/{id}/status` uses `retain=true`:
 |---|---|---|---|
 | `backend` | Laptop 1 Express API | `requests/charging`, `stations/+/status` | `results/*`, `telemetry/*`, `alerts` |
 | `mlworker` | Laptop 2 Python worker | `results/*`, `alerts` | `requests/charging`, `telemetry/*` |
-| `sensor` | Arduino gateway | `telemetry/temperature` | *(none)* |
+| `sensor` | Temperature simulator (`npm run dev:sim-telemetry`) | `telemetry/temperature` | *(none)* |
+| `opcbridge` | Mac OPC UA → MQTT bridge (`laptop-2/opcua_bridge`) for the real Arduino sensor | `telemetry/temperature` | *(none)* |
 | `admin` | Development/debug | `evdt/v1/#` | `evdt/v1/#` |

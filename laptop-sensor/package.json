@@ -1,0 +1,22 @@
+{
+  "name": "evdt-sensor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sensor laptop for the EV charging station digital twin: reads the Arduino ambient temperature over USB serial and serves it as an OPC UA server.",
+  "type": "module",
+  "main": "src/main.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/main.js",
+    "opcua:server": "node src/main.js",
+    "list-ports": "node src/main.js --list",
+    "test": "node --test --test-concurrency=1 --test-timeout=60000 \"test/**/*.test.js\""
+  },
+  "dependencies": {
+    "dotenv": "18.0.10",
+    "node-opcua": "2.187.22",
+    "serialport": "13.0.0"
+  }
+}
