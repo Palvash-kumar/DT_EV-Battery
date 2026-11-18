@@ -94,7 +94,8 @@ Without this, Laptop 1 will time out trying to connect even though Mosquitto is 
 | Install Mosquitto | `brew install mosquitto` |
 | Make sure the Homebrew service isn't also running | `brew services stop mosquitto` |
 | Start the broker with the project config | `cd laptop-2 && mosquitto -c mosquitto/mosquitto.conf -v` |
-| Python venv | `python3 -m venv .venv && source .venv/bin/activate` |
+| Python version | Needs **3.11, 3.12 or 3.13** (3.13 trained the models). Check with `python3 --version`; if it's older (macOS's built-in one often is) or 3.14, run `brew install python@3.13` |
+| Python venv | `cd laptop-2 && python3.13 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`. If an old `.venv` exists from an earlier phase, delete it first (`rm -rf .venv`) |
 | Start the worker | `cd ml_service && cp .env.example .env` (first time only) then `python main.py` |
 | Firewall | System Settings → Network → Firewall. If it's on, allow incoming connections for `mosquitto` when macOS asks, or add it with the + button |
 
@@ -129,14 +130,14 @@ mosquitto version 2.x running
 
 ```bash
 cd laptop-2/ml_service
-copy .env.example .env      # first time only — do NOT re-run this later, see §6
+copy .env.example .env      # first time only (Mac: cp) — do NOT re-run this later, see §6
 python main.py
 ```
 
 `.env.example` already has the right defaults for this machine (`MQTT_HOST=0.0.0.0`, `MQTT_USERNAME=mlworker`, `MQTT_PASSWORD=mlworker_pass_2026`) since the worker connects to the broker running on the same machine. You should see:
 ```
 ML worker starting — station=STATION-001
-Estimator: physics-1.0  prices USD/kWh: {'Level 1': 0.17, 'Level 2': 0.3, 'DC Fast Charger': 0.48}
+Models: duration=palo-alto-hgb-2026-11-18 cost=palo-alto-hgb-2026-11-18 wear=isu-life-1.0  DC price=$0.48/kWh
 MQTT connected to 0.0.0.0:1883
 Subscribed to evdt/v1/requests/charging (QoS 1)
 ```
