@@ -59,23 +59,46 @@ All three must be on the same Wi-Fi/LAN. The browser only ever talks to the web 
 
 ### 2.2 Diagram
 
-```
-                        ┌──────────────────────────── SENSOR LAPTOP (Windows) ───────────────────────────┐
- LM35 ──> Arduino UNO ──USB/COM6──> serial reader ──> 5 s sampler ──> OPC UA server  opc.tcp://<ip>:4840/evdt
- (A0)    R4 WiFi                                                        node EVChargingStation/AmbientSensor/TemperatureC
-                        └───────────────────────────────────────────────────────┬────────────────────────┘
-                                                                                │ OPC UA subscription
-                        ┌──────────────────────────── ML LAPTOP (Mac) ──────────▼────────────────────────┐
-                        │  opcua_bridge/bridge.py ──MQTT──> Mosquitto :1883 <──MQTT──> ml_service/main.py │
-                        │                                     (auth + ACL)              (scikit-learn)    │
-                        └───────────────────────────────────────┬────────────────────────────────────────┘
-                                                                │ MQTT (requests / results / telemetry / alerts)
-                        ┌──────────────────────────── WEB LAPTOP (Windows) ─────▼────────────────────────┐
-                        │  Express backend :3000 ──> MongoDB                                             │
-                        │        │ REST + Socket.IO                                                      │
-                        │        ▼                                                                       │
-                        │  React + Three.js dashboard :5173  (browser)                                   │
-                        └────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    LM35(["LM35 sensor<br/>on A0"]) --> ARD["Arduino UNO R4 WiFi<br/>prints Temperature every ~2.2 s"]
+
+    subgraph S["Sensor laptop (Windows) - laptop-sensor/"]
+        SER["Serial reader<br/>COM6, 9600 baud<br/>rejects impossible values"]
+        SMP["Sampler<br/>newest reading every 5 s"]
+        OPC["OPC UA server :4840<br/>opc.tcp://ip:4840/evdt<br/>AmbientSensor/TemperatureC"]
+        SER --> SMP --> OPC
+    end
+
+    subgraph M["ML laptop (Mac) - laptop-2/"]
+        BR["OPC UA to MQTT bridge<br/>opcua_bridge/bridge.py"]
+        MQ{{"Mosquitto broker :1883<br/>password + ACL"}}
+        ML["ML worker<br/>ml_service/main.py<br/>scikit-learn + physics"]
+        BR -- "telemetry/temperature" --> MQ
+        MQ -- "requests/charging" --> ML
+        ML -- "results/charging, results/health, alerts" --> MQ
+    end
+
+    subgraph W["Web laptop (Windows) - laptop-1/"]
+        BE["Express backend :3000<br/>MQTT client, Socket.IO"]
+        DB[("MongoDB<br/>local or Atlas")]
+        FE["React + Three.js dashboard :5173"]
+        BE <--> DB
+        BE <-- "REST + Socket.IO" --> FE
+    end
+
+    USER(["Browser user"]) --> FE
+    ARD -- "USB serial" --> SER
+    OPC -- "OPC UA subscription" --> BR
+    BE -- "requests/charging" --> MQ
+    MQ -- "results, telemetry, alerts" --> BE
+
+    classDef sensor fill:#fff4e5,stroke:#e8a33d,color:#000
+    classDef ml fill:#e8f1ff,stroke:#3d7be8,color:#000
+    classDef web fill:#e9f8ee,stroke:#3dae63,color:#000
+    class SER,SMP,OPC sensor
+    class BR,MQ,ML ml
+    class BE,DB,FE web
 ```
 
 ### 2.3 Why each technology
@@ -84,13 +107,8 @@ All three must be on the same Wi-Fi/LAN. The browser only ever talks to the web 
 |---|---|---|
 | Arduino → sensor laptop | USB serial, 9600 baud | No Wi-Fi credentials or broker passwords on the board. The sketch only prints `Temperature: 31.26 °C` |
 | Sensor laptop → Mac | **OPC UA** (node-opcua server, asyncua client) | The industrial standard for exposing device data. Typed values with status codes and source timestamps, and a subscription so the Mac is notified of each new value |
-<<<<<<< HEAD
 | Mac ↔ web laptop | **MQTT** (Mosquitto) | Lightweight publish/subscribe with QoS 1. It decouples the web app from the ML worker |
 | Web laptop ↔ browser | REST + **Socket.IO** | The browser gets live updates without polling and never needs MQTT access |
-=======
-| Mac ↔️ web laptop | **MQTT** (Mosquitto) | Lightweight publish/subscribe with QoS 1. It decouples the web app from the ML worker |
-| Web laptop ↔️ browser | REST + **Socket.IO** | The browser gets live updates without polling and never needs MQTT access |
->>>>>>> 8cf7f94e787c25a213742fba2055883c8b8b806e
 | Storage | **MongoDB** | Flexible documents for requests, results, telemetry, alerts and provenance |
 
 ### 2.4 MQTT topics
@@ -126,48 +144,93 @@ Full topic map: [`shared/schemas/TOPIC_MAP.md`](shared/schemas/TOPIC_MAP.md).
 
 ### 3.1 Charging request (runtime)
 
-```
-1. Browser       POST /api/predictions/charging            (vehicle, SOC, charger, temperature source)
-2. Backend       validates (zod) → if source = "sensor", replaces the temperature with the newest stored
-                 sensor reading (refused with 409 SENSOR_NOT_LIVE if it is offline or suspect)
-                 → saves the request as "pending" in MongoDB
-                 → publishes to evdt/v1/requests/charging, starts a 15 s timer
-3. ML worker     validates against the JSON Schema, removes duplicates by requestId
-                 → physics: usable capacity, SOC window, temperature effects, charge taper
-                 → Level 1/2: duration and cost from the Palo Alto models; DC fast: physics + price
-                 → battery: SOH from vehicle age, wear factor / wear % / RUL from the ISU cycle-life model
-                 → publishes results/charging and results/health
-4. Backend       validates the result, ignores duplicates, updates the request to "completed"
-                 (or "timed_out" after 15 s, which can be retried with the same requestId)
-                 → pushes the update to the browser over Socket.IO
-5. Browser       shows duration, energy, cost, wear, SOH, RUL, with an "ML estimate" or
-                 "Physics estimate" badge and the model versions used
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant FE as Dashboard (React)
+    participant BE as Backend (Express)
+    participant DB as MongoDB
+    participant MQ as Mosquitto
+    participant ML as ML worker (Python)
+
+    U->>FE: Fill New request form
+    FE->>BE: POST /api/predictions/charging
+    BE->>BE: Validate with zod
+    opt Temperature source = Live sensor
+        BE->>DB: Read newest sensor reading
+        Note over BE: Uses the stored sensor value, not the browser value.<br/>Refused with 409 SENSOR_NOT_LIVE if offline or suspect
+    end
+    BE->>DB: Save request as pending
+    BE->>MQ: Publish evdt/v1/requests/charging (QoS 1)
+    BE-->>FE: 202 pending, start 15 s timer
+    MQ->>ML: Deliver request
+    ML->>ML: Validate JSON Schema, skip duplicate requestId
+    ML->>ML: Physics - usable capacity, SOC window, temperature, taper
+    ML->>ML: Level 1/2 - Palo Alto duration and cost models<br/>DC fast - physics and DC price
+    ML->>ML: Battery - SOH from age, wear and RUL from ISU model
+    ML->>MQ: Publish results/charging and results/health
+    MQ->>BE: Deliver results
+    alt Result within 15 s
+        BE->>DB: Update request to completed
+    else No result after 15 s
+        BE->>DB: Mark timed_out (retry keeps the same requestId)
+    end
+    BE-->>FE: Socket.IO update
+    FE-->>U: Time, energy, cost, wear, SOH, RUL<br/>with ML estimate or Physics estimate badge
 ```
 
 ### 3.2 Live temperature (runtime)
 
+```mermaid
+flowchart LR
+    A["Arduino<br/>reading every ~2.2 s<br/>20-sample average"] -- "USB serial" --> B["Sensor laptop<br/>parse line<br/>reject outside -50 to 85 °C<br/>apply calibration offset"]
+    B --> C["Sampler<br/>newest reading<br/>every 5 s"]
+    C --> D["OPC UA node TemperatureC<br/>value + SourceTimestamp<br/>status Good"]
+    D -- "OPC UA subscription<br/>StatusValueTimestamp" --> E["Mac bridge<br/>build + validate message<br/>source sensor, simulated false"]
+    E -- "MQTT QoS 1<br/>user opcbridge" --> F{{"Mosquitto<br/>telemetry/temperature"}}
+    F --> G["Backend<br/>rate check over 1 °C/s = suspect<br/>store, sensor_offline alert"]
+    G -- "Socket.IO" --> H["New request page<br/>Live · LM35-A0-01 · 31.26 °C"]
 ```
-Arduino prints a reading every ~2.2 s (20-sample average, 12-bit ADC)
- → sensor laptop: parse the line, reject impossible values (outside −50…85 °C, e.g. a loose wire),
-   apply the calibration offset, keep only the newest reading every 5 s
- → OPC UA node TemperatureC: value + SourceTimestamp (when the reading arrived), status Good
-   (BadWaitingForInitialData before the first reading; BadNoCommunication after 30 s without one)
- → Mac bridge: subscription (trigger StatusValueTimestamp) → builds the telemetry message
-   (source "sensor", simulated false) → validates → publishes QoS 1 as opcbridge
-   (nothing is published while the status is Bad or a link is down; no duplicates after reconnects)
- → backend: rate check (> 1 °C/s change = suspect), stores it, Socket.IO update,
-   opens/resolves the sensor_offline alert
- → New request page: "● Live · LM35-A0-01 · 31.26 °C · read 1 s ago", value follows the sensor
+
+Sensor states on the OPC UA node and what the rest of the chain does:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Waiting: server starts
+    Waiting: BadWaitingForInitialData
+    Live: Good - value updated every 5 s
+    Offline: BadNoCommunication
+    Waiting --> Live: first valid reading
+    Live --> Offline: no reading for 30 s or USB port closed
+    Offline --> Live: readings resume
+    note right of Offline
+        Bridge publishes nothing.
+        Backend opens the sensor_offline alert
+        and refuses Live sensor requests.
+    end note
 ```
 
 ### 3.3 Training (offline, on the Mac)
 
-```
-download_datasets.py  ─┬─> prepare_sessions.py ──> train_session_models.py      → session_duration / cost / idle .joblib
- (NASA, ISU, Palo Alto, │
-  ACN; about 10.5 GB)   ├─> prepare_isu.py ──────> train_battery_degradation.py → battery_life / battery_rul .joblib
-                        └─> prepare_nasa.py ─────> train_battery_soh.py          → soh.joblib
-study_ev_charging_patterns.py  → shows the synthetic Kaggle CSV has no learnable signal
+```mermaid
+flowchart LR
+    DL["download_datasets.py<br/>NASA, ISU, Palo Alto, ACN<br/>about 10.5 GB"]
+
+    DL --> PS["prepare_sessions.py<br/>Palo Alto + ACN"] --> TS["train_session_models.py"]
+    TS --> M1[("session_duration.joblib<br/>session_cost.joblib<br/>session_idle.joblib")]
+
+    DL --> PI["prepare_isu.py<br/>ISU-ILCC cells"] --> TB["train_battery_degradation.py"]
+    TB --> M2[("battery_life.joblib<br/>battery_rul.joblib")]
+
+    DL --> PN["prepare_nasa.py<br/>NASA cells"] --> TN["train_battery_soh.py"]
+    TN --> M3[("soh.joblib")]
+
+    CSV["ev_charging_patterns.csv"] --> ST["study_ev_charging_patterns.py"]
+    ST --> NS["Result: synthetic CSV<br/>has no learnable signal"]
+
+    M1 --> W["ML worker<br/>ml_service/"]
+    M2 --> W
 ```
 
 Rules used for every model:
@@ -486,8 +549,4 @@ Phase write-ups in [`what_I_did/`](what_I_did/):
 | [9](what_I_did/phase9.md) | Three.js digital twin |
 | [10](what_I_did/phase10.md) | real datasets and retrained models |
 | [10 (Arduino)](what_I_did/phase10_arduino.md) | live Arduino temperature sensor |
-<<<<<<< HEAD
 | [12](what_I_did/phase12_opcua.md) | OPC UA: sensor laptop → Mac bridge → MQTT |
-=======
-| [12](what_I_did/phase12_opcua.md) | OPC UA: sensor laptop → Mac bridge → MQTT |
->>>>>>> 8cf7f94e787c25a213742fba2055883c8b8b806e
