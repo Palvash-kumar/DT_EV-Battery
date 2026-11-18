@@ -32,6 +32,8 @@ Laptop 2 needs:
 - `shared/schemas/` (the whole folder — the Python worker validates against these)
 - `laptop-2/models/*.joblib` — these are **gitignored**, so if you cloned the repo fresh they won't be there. Copy them over separately (USB stick, network share, etc.) from wherever they were trained, or retrain them on Laptop 2 with the Phase 1–3 scripts.
 
+> **Laptop 2 is a Mac in our setup.** The steps below show Windows commands where the original plan assumed Windows; the macOS equivalents are in [§2.6](#26-if-laptop-2-is-a-mac).
+
 ### 2.2 Find Laptop 2's LAN IP address
 
 ```powershell
@@ -73,6 +75,20 @@ New-NetFirewallRule -DisplayName "Mosquitto MQTT" -Direction Inbound -LocalPort 
 ```
 
 Without this, Laptop 1 will time out trying to connect even though Mosquitto is running correctly.
+
+### 2.6 If Laptop 2 is a Mac
+
+| Step | macOS command |
+|---|---|
+| Find the Wi-Fi IP | `ipconfig getifaddr en0` |
+| Install Mosquitto | `brew install mosquitto` |
+| Make sure the Homebrew service isn't also running | `brew services stop mosquitto` |
+| Start the broker with the project config | `cd laptop-2 && mosquitto -c mosquitto/mosquitto.conf -v` |
+| Python venv | `python3 -m venv .venv && source .venv/bin/activate` |
+| Start the worker | `cd ml_service && cp .env.example .env` (first time only) then `python main.py` |
+| Firewall | System Settings → Network → Firewall. If it's on, allow incoming connections for `mosquitto` when macOS asks, or add it with the + button |
+
+What we used in the real two-laptop run (18 Nov 2026): Laptop 2 = Mac at `10.0.247.63`, Laptop 1 = Windows at `10.0.244.114`, same Wi-Fi.
 
 ---
 
@@ -232,11 +248,36 @@ These are prototype credentials for a trusted LAN demo, not production secrets. 
 | Mosquitto starts but closes immediately / wrong behaviour | The Windows Mosquitto **service** is also running and fighting over port 1883 | Stop/disable the service (step 2.4), only run it manually with `-c mosquitto/mosquitto.conf` |
 | Backend connects to the broker, but requests never get a result | Python worker isn't running, or crashed loading the models | Check the Python worker's terminal for errors (e.g. missing `.joblib` files — see §2.1) |
 | `Connection Refused: not authorised` in Mosquitto's log | Wrong username/password, or a user trying to publish/subscribe a topic the ACL doesn't allow it | Check `.env` on the connecting side matches §5, and that the topic matches the ACL for that user |
+| `Test-NetConnection ... -Port 1883` says `True`, but the dashboard header shows **MQTT broker: down** | The network is fine; the broker is **rejecting the login**. We hit this with `MQTT_USERNAME=evdt_user`, a user that doesn't exist in `laptop-2/mosquitto/passwd` | Laptop 1's backend must log in as `backend` / `backend_pass_2026`. Restart the backend after changing `.env` |
+| Dashboard shows **"Prediction request not found"** right after switching databases | The browser is on an old request link from the previous database (e.g. local MongoDB). Each database has its own requests | Go to **New request** and send a new one. Old links only work against the database they were created in |
+| Atlas works, but there are no charger bays / empty history | `npm run db:setup` was only ever run against the local database | Run `npm run db:setup` in `laptop-1/backend` once with the Atlas `MONGODB_URI` in `.env` |
+| Data lands in an Atlas database called `test` | The connection string ends in `...mongodb.net/` with no database name, so MongoDB uses `test` | Put a name after the slash: `...mongodb.net/evdt` |
 | Request works once, then subsequent ones hang | Python worker crashed after the first message (check its terminal) | Restart `python main.py` on Laptop 2 |
 
 ---
 
-## 7. Shutting down
+## 7. Optional: keeping a copy of all MQTT traffic in Atlas
+
+Mosquitto's own store (`laptop-2/mosquitto/data/mosquitto.db`) can't be moved to MongoDB — Mosquitto only writes its own file format. It stays on the Mac and holds short-lived broker state (retained messages, undelivered QoS 1 messages).
+
+What you *can* do is keep a cloud log of every message that goes over the broker:
+
+```bash
+cd laptop-1/backend
+npm run archive:mqtt
+```
+
+- writes to Atlas database **`mosquitto`**, collection **`messages`** (separate from the backend's `evdt` database)
+- only subscribes, never publishes; clean session, so the broker keeps nothing for it while it's off
+- retained messages already in `mosquitto.db` are replayed by the broker on first connect and stored with `retained: true`
+- duplicates (same topic + `messageId`) are stored once; rows are deleted after `ARCHIVER_TTL_DAYS` (default 7)
+- uses `ARCHIVER_MQTT_USERNAME` / `ARCHIVER_MQTT_PASSWORD` from `.env` (`admin`), because the `backend` user isn't allowed to read the request topic
+
+The backend does not need it. Run it in its own terminal only when you want the log.
+
+---
+
+## 8. Shutting down
 
 Order doesn't matter much, but this is the clean sequence:
 
@@ -247,7 +288,7 @@ Order doesn't matter much, but this is the clean sequence:
 
 ---
 
-## 8. Related docs
+## 9. Related docs
 
 - [`battery_model_limitations.md`](battery_model_limitations.md) — what the SOH/RUL models can and can't claim
 - `shared/schemas/TOPIC_MAP.md` — full topic list, QoS, retained-message rules

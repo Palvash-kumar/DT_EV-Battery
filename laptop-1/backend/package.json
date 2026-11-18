@@ -18,7 +18,8 @@
     "db:init": "node scripts/db.js init",
     "db:seed": "node scripts/db.js seed",
     "db:import-csv": "node scripts/db.js import-csv",
-    "db:setup": "node scripts/db.js init seed import-csv"
+    "db:setup": "node scripts/db.js init seed import-csv",
+    "archive:mqtt": "node scripts/mqtt-archiver.js"
   },
   "dependencies": {
     "ajv": "^8.20.0",
