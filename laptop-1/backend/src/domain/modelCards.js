@@ -13,8 +13,10 @@ const DIR = process.env.MODEL_METADATA_DIR
 const FILES = {
   duration: 'duration_model_metadata.json',
   energy: 'energy_model_metadata.json',
+  cost: 'cost_model_metadata.json',
   soh: 'soh_model_metadata.json',
   rul: 'rul_model_metadata.json',
+  life: 'battery_life_model_metadata.json',
 };
 
 function card(file) {
@@ -34,6 +36,14 @@ function card(file) {
       testRows: m.test_rows ?? null,
       testBatteries: m.test_batteries ?? undefined,
       split: m.split ?? null,
+      dataset: m.dataset ?? null,
+      cvMae: scores.cv_mae ?? null,
+      cvR2: scores.cv_r2 ?? null,
+      leaveOneBatteryOut: m.leave_one_battery_out ?? null,
+      bestMlModel: m.best_ml_model ?? null,
+      bestMlCvR2: m.all_results?.[m.best_ml_model]?.cv_r2 ?? null,
+      permutationPValue: m.permutation_test?.p_value ?? null,
+      hasUsefulSignal: m.permutation_test?.has_useful_signal ?? null,
       limitations: m.limitations ?? [],
     };
   } catch {

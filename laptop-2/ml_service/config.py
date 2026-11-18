@@ -25,22 +25,16 @@ MQTT_PASSWORD = _require("MQTT_PASSWORD")
 # ── Topics ────────────────────────────────────────────────────────────────────
 TOPIC_REQUESTS = os.environ.get("MQTT_TOPIC_REQUESTS", "evdt/v1/requests/charging")
 TOPIC_RESULTS = os.environ.get("MQTT_TOPIC_RESULTS_CHARGING", "evdt/v1/results/charging")
+TOPIC_RESULTS_HEALTH = os.environ.get("MQTT_TOPIC_RESULTS_HEALTH", "evdt/v1/results/health")
 
 # ── Station ───────────────────────────────────────────────────────────────────
 STATION_ID = os.environ.get("STATION_ID", "STATION-001")
 
 # ── Models ────────────────────────────────────────────────────────────────────
-_ml_service_dir = Path(__file__).resolve().parent
-_raw_model_dir = os.environ.get("MODEL_DIR", "")
-if _raw_model_dir:
-    MODEL_DIR = (_ml_service_dir / _raw_model_dir).resolve()
-else:
-    MODEL_DIR = _ml_service_dir.parent / "models"
+MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 
-DURATION_MODEL_PATH = MODEL_DIR / "charging_duration.joblib"
-ENERGY_MODEL_PATH = MODEL_DIR / "energy.joblib"
-DURATION_META_PATH = MODEL_DIR / "duration_model_metadata.json"
-ENERGY_META_PATH = MODEL_DIR / "energy_model_metadata.json"
+# ── DC fast charging price (USD per kWh); Level 1/2 cost comes from the trained cost model
+DC_PRICE_USD_PER_KWH = float(os.environ.get("PRICE_DCFC_USD_PER_KWH", "0.48"))
 
 # ── Misc ──────────────────────────────────────────────────────────────────────
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()

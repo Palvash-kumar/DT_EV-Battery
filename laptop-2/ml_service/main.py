@@ -110,7 +110,7 @@ def _handle_request(payload_bytes: bytes):
             return
 
         # 5. Run inference
-        body = predictors.predict(payload)
+        body, health_body = predictors.predict(payload)
 
         result = _build_result(request_id, "completed", body=body)
 
@@ -121,20 +121,25 @@ def _handle_request(payload_bytes: bytes):
             oldest = next(iter(_seen_request_ids))
             del _seen_request_ids[oldest]
 
-        # 7. Publish
+        # 7. Publish the charging result, then the battery-health estimate for the same request
         mqtt_client.publish_result(result)
+        mqtt_client.publish_result(_build_result(request_id, "completed", body=health_body),
+                                   topic=config.TOPIC_RESULTS_HEALTH)
         _stats["processed"] += 1
 
         latency_ms = (time.monotonic() - t0) * 1000
         log.info(
             "requestId=%s  status=completed  latency=%.1fms  "
-            "duration=%.4fh  energy=%.4fkWh  durationModel=%s  energyModel=%s",
+            "duration=%.4fh  energy=%.4fkWh  cost=$%.2f  soh=%.1f%%  wear=x%.2f  rul=%.0f EFC  model=%s",
             request_id,
             latency_ms,
             body["predictions"]["durationHours"],
             body["predictions"]["energyKwh"],
+            body["predictions"]["costUsd"],
+            body["predictions"]["estimatedSohPct"],
+            body["predictions"]["wearFactor"],
+            health_body["health"]["rulCycles"],
             body["model"]["durationVersion"],
-            body["model"]["energyVersion"],
         )
 
     except Exception:
@@ -166,8 +171,8 @@ def _log_health():
 def main():
     _stats["started_at"] = datetime.now(timezone.utc).isoformat()
     log.info("ML worker starting — station=%s", config.STATION_ID)
-    log.info("Duration model: %s", config.DURATION_MODEL_PATH)
-    log.info("Energy model:   %s", config.ENERGY_MODEL_PATH)
+    log.info("Models: duration=%s cost=%s wear=%s  DC price=$%.2f/kWh", predictors.DURATION_ML_VERSION,
+             predictors.COST_ML_VERSION, predictors.battery_health.VERSION, config.DC_PRICE_USD_PER_KWH)
 
     mqtt_client.connect(on_message=_on_message)
     log.info("ML worker ready — waiting for requests on %s", config.TOPIC_REQUESTS)

@@ -32,6 +32,15 @@ function useCountdown(sentAt, timeoutSec, active) {
 
 function ModelCard({ name, card }) {
   if (!card) return null;
+  if (card.selectedModel === 'PhysicsEstimate') {
+    return (
+      <li>
+        <strong>{name}</strong>: physics estimate. The best model trained on the CSV ({card.bestMlModel}) scored a cross-validated R² of{' '}
+        {num(card.bestMlCvR2, 2)}, and the permutation test (p = {num(card.permutationPValue, 2)}){' '}
+        {card.hasUsefulSignal ? 'found a usable pattern' : 'found no usable pattern in that column'}.
+      </li>
+    );
+  }
   return (
     <li>
       <strong>{name}</strong>: {card.selectedModel}, trained {card.version}. On {card.testRows} held-out sessions the average error
@@ -207,12 +216,50 @@ export function RequestDetail() {
                 not a model
               </p>
             </div>
+            {pred.costUsd != null && (
+              <div className="big-number">
+                <p className="big-label">Estimated charging cost</p>
+                <p className="big-value">
+                  <span className="unit">$</span>
+                  {num(pred.costUsd, 2)}
+                </p>
+                <p className="small muted">
+                  {String(r.result.model?.costVersion || '').startsWith('physics')
+                    ? 'Grid energy × typical DC fast-charging price'
+                    : 'Model trained on real Palo Alto charging fees'}
+                </p>
+              </div>
+            )}
+            {pred.wearFactor != null && (
+              <div className="big-number">
+                <p className="big-label">Battery wear from this charge</p>
+                <p className="big-value">
+                  {num(pred.wearFactor, 2)}× <span className="unit">gentle charge</span>
+                </p>
+                <p className="small muted">≈ {num(pred.batteryWearPct, 4)} percentage points of SOH (lab-data stress model)</p>
+              </div>
+            )}
+            {pred.estimatedSohPct != null && (
+              <div className="big-number">
+                <p className="big-label">Estimated battery health</p>
+                <p className="big-value">
+                  {num(pred.estimatedSohPct, 1)} <span className="unit">% SOH</span>
+                </p>
+                <p className="small muted">
+                  Usable capacity ≈ {num((vehicle.batteryCapacityKwh * pred.estimatedSohPct) / 100, 1)} kWh at {vehicle.vehicleAgeYears} years old
+                </p>
+              </div>
+            )}
           </div>
           <dl className="facts">
             <dt>Duration model</dt>
             <dd>{r.result.model?.durationVersion || '–'}</dd>
             <dt>Energy model</dt>
             <dd>{r.result.model?.energyVersion || '–'}</dd>
+            <dt>Cost model</dt>
+            <dd>{r.result.model?.costVersion || '–'}</dd>
+            <dt>Wear model</dt>
+            <dd>{r.result.model?.wearVersion || '–'}</dd>
             <dt>Predicted at (Laptop 2)</dt>
             <dd>{dateTime(r.result.processedAt)}</dd>
             <dt>Received (Laptop 1)</dt>
@@ -237,10 +284,13 @@ export function RequestDetail() {
               <ul>
                 <ModelCard name="Duration" card={meta.models.duration} />
                 <ModelCard name="Energy" card={meta.models.energy} />
+                <ModelCard name="Cost" card={meta.models.cost} />
               </ul>
               <p>
-                An R² near zero means the model does about as well as always guessing the average. The charging dataset is synthetic and
-                its columns are only loosely related, so treat these as rough estimates, not a forecast for a real car.
+                Level 1/2 duration and cost come from models trained on about 250,000 real Palo Alto charging sessions and scored on
+                drivers they never saw. DC fast charging has no public session data, so it uses the physics estimator. Energy is
+                calculated from the battery size, the charge window and charging losses. These are estimates, not measurements of a real
+                car.
               </p>
             </Notice>
           )}

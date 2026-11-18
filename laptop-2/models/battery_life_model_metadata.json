@@ -1,0 +1,194 @@
+{
+  "task": "battery_cycle_life",
+  "target": "life_efc",
+  "target_units": "EFC to 80 % capacity",
+  "features": [
+    "charge_c",
+    "discharge_c",
+    "dod_pct"
+  ],
+  "all_results": {
+    "MeanBaseline": {
+      "cv_mae": 273.36,
+      "cv_mape_pct": 70.91,
+      "cv_r2": -0.1073,
+      "test_mae": 458.55,
+      "test_mape_pct": 37.12,
+      "test_r2": -0.6839
+    },
+    "Ridge-poly2": {
+      "cv_mae": 156.91,
+      "cv_mape_pct": 29.39,
+      "cv_r2": 0.56,
+      "test_mae": 294.65,
+      "test_mape_pct": 28.01,
+      "test_r2": 0.3621
+    },
+    "GaussianProcess": {
+      "cv_mae": 154.99,
+      "cv_mape_pct": 37.5,
+      "cv_r2": 0.6643,
+      "test_mae": 217.08,
+      "test_mape_pct": 22.8,
+      "test_r2": 0.5251
+    },
+    "RandomForest": {
+      "cv_mae": 155.18,
+      "cv_mape_pct": 33.3,
+      "cv_r2": 0.6716,
+      "test_mae": 228.88,
+      "test_mape_pct": 21.28,
+      "test_r2": 0.6538
+    },
+    "HistGradientBoosting": {
+      "cv_mae": 155.49,
+      "cv_mape_pct": 30.26,
+      "cv_r2": 0.6736,
+      "test_mae": 237.87,
+      "test_mape_pct": 22.3,
+      "test_r2": 0.6378
+    }
+  },
+  "selected_model": "Ridge-poly2",
+  "test_groups": [
+    1,
+    45,
+    59,
+    63
+  ],
+  "train_rows": 235,
+  "test_rows": 16,
+  "selected_by": "cv_mape_pct",
+  "dataset": "ISU-ILCC Battery Aging Dataset (NMC/graphite 502030 pouch, 250 mAh, 30 \u00b0C), CC BY 4.0",
+  "split": "95/5 by test condition; model chosen by 10-fold grouped CV on the 95 %",
+  "training_date": "2026-11-18T11:26:10.032649+00:00",
+  "limitations": [
+    "Lab cells cycled at 30 \u00b0C with constant currents; EV packs see variable temperature, rest and calendar aging.",
+    "Charge rates 0.5-3C and depth of discharge 4-98 % were tested; inputs outside that range are clamped.",
+    "EFC = cumulative discharged Ah / rated capacity. End of life = 80 % of the first measured capacity."
+  ],
+  "life_efc_range": [
+    42.3,
+    1791.7
+  ],
+  "early_prediction": {
+    "early_capacity_check_efc": 25.0,
+    "features": [
+      "charge_c",
+      "discharge_c",
+      "dod_pct",
+      "log_var_dq",
+      "log_abs_min_dq",
+      "mean_dq",
+      "early_retention_pct"
+    ],
+    "conditions_only": {
+      "all_results": {
+        "MeanBaseline": {
+          "cv_mae": 266.45,
+          "cv_mape_pct": 52.15,
+          "cv_r2": -0.086,
+          "test_mae": 451.98,
+          "test_mape_pct": 37.74,
+          "test_r2": -0.5878
+        },
+        "Ridge-poly2": {
+          "cv_mae": 147.27,
+          "cv_mape_pct": 25.46,
+          "cv_r2": 0.6203,
+          "test_mae": 274.84,
+          "test_mape_pct": 25.41,
+          "test_r2": 0.433
+        },
+        "GaussianProcess": {
+          "cv_mae": 143.39,
+          "cv_mape_pct": 25.27,
+          "cv_r2": 0.7026,
+          "test_mae": 203.51,
+          "test_mape_pct": 20.79,
+          "test_r2": 0.5768
+        },
+        "RandomForest": {
+          "cv_mae": 160.78,
+          "cv_mape_pct": 28.2,
+          "cv_r2": 0.6352,
+          "test_mae": 233.94,
+          "test_mape_pct": 21.81,
+          "test_r2": 0.6369
+        },
+        "HistGradientBoosting": {
+          "cv_mae": 151.78,
+          "cv_mape_pct": 27.68,
+          "cv_r2": 0.6712,
+          "test_mae": 245.31,
+          "test_mape_pct": 24.73,
+          "test_r2": 0.6457
+        }
+      },
+      "selected_model": "GaussianProcess",
+      "test_groups": [
+        1,
+        45,
+        59,
+        63
+      ],
+      "train_rows": 231,
+      "test_rows": 16,
+      "selected_by": "cv_mae"
+    },
+    "conditions_plus_early_curve": {
+      "all_results": {
+        "MeanBaseline": {
+          "cv_mae": 266.45,
+          "cv_mape_pct": 52.15,
+          "cv_r2": -0.086,
+          "test_mae": 451.98,
+          "test_mape_pct": 37.74,
+          "test_r2": -0.5878
+        },
+        "Ridge-poly2": {
+          "cv_mae": 154.18,
+          "cv_mape_pct": 22.8,
+          "cv_r2": 0.4181,
+          "test_mae": 245.48,
+          "test_mape_pct": 21.54,
+          "test_r2": 0.521
+        },
+        "GaussianProcess": {
+          "cv_mae": 124.71,
+          "cv_mape_pct": 20.68,
+          "cv_r2": 0.7508,
+          "test_mae": 209.19,
+          "test_mape_pct": 20.37,
+          "test_r2": 0.6527
+        },
+        "RandomForest": {
+          "cv_mae": 142.97,
+          "cv_mape_pct": 24.07,
+          "cv_r2": 0.7027,
+          "test_mae": 239.96,
+          "test_mape_pct": 22.79,
+          "test_r2": 0.6284
+        },
+        "HistGradientBoosting": {
+          "cv_mae": 144.62,
+          "cv_mape_pct": 23.72,
+          "cv_r2": 0.6967,
+          "test_mae": 235.54,
+          "test_mape_pct": 23.1,
+          "test_r2": 0.6497
+        }
+      },
+      "selected_model": "GaussianProcess",
+      "test_groups": [
+        1,
+        45,
+        59,
+        63
+      ],
+      "train_rows": 231,
+      "test_rows": 16,
+      "selected_by": "cv_mae"
+    }
+  }
+}

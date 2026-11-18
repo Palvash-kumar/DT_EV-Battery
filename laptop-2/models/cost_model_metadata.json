@@ -1,0 +1,67 @@
+{
+  "task": "session_cost",
+  "target": "fee_usd",
+  "target_units": "USD",
+  "features_numeric": [
+    "energy_kwh",
+    "charge_h",
+    "idle_h",
+    "hour",
+    "weekday"
+  ],
+  "features_categorical": [
+    "port_type"
+  ],
+  "selected_model": "HistGradientBoosting-MAE-tariff",
+  "all_results": {
+    "MeanBaseline": {
+      "cv_mae": 1.3593,
+      "cv_r2": -0.0001,
+      "test_mae": 1.3956,
+      "test_rmse": 2.4615,
+      "test_r2": -0.0076
+    },
+    "Ridge": {
+      "cv_mae": 0.2449,
+      "cv_r2": 0.8154,
+      "test_mae": 0.2853,
+      "test_rmse": 1.2503,
+      "test_r2": 0.7401
+    },
+    "HistGradientBoosting": {
+      "cv_mae": 0.1653,
+      "cv_r2": 0.832,
+      "test_mae": 0.2354,
+      "test_rmse": 1.2476,
+      "test_r2": 0.7412
+    },
+    "HistGradientBoosting-MAE": {
+      "cv_mae": 0.1464,
+      "cv_r2": 0.7944,
+      "test_mae": 0.183,
+      "test_rmse": 1.3466,
+      "test_r2": 0.6985
+    },
+    "HistGradientBoosting-MAE-tariff": {
+      "cv_mae": 0.1276,
+      "cv_r2": 0.8156,
+      "test_mae": 0.1987,
+      "test_rmse": 1.358,
+      "test_r2": 0.6933
+    },
+    "FormulaBaseline": {
+      "test_mae": 0.2341,
+      "test_rmse": 1.5637,
+      "test_r2": 0.5934
+    }
+  },
+  "train_rows": 114586,
+  "test_rows": 6057,
+  "split": "95/5 by driver (test drivers unseen); model chosen by 5-fold grouped CV on the 95 %",
+  "dataset": "City of Palo Alto EV charging sessions 2011-2020",
+  "training_date": "2026-11-18T11:28:59.001169+00:00",
+  "limitations": [
+    "Learned from Palo Alto's real fees: $0.23/kWh plus fees for long plug-in times. Other sites price differently.",
+    "DC fast charging is not in the data; its cost uses a typical DC price per kWh."
+  ]
+}

@@ -1,70 +1,71 @@
 {
-  "task": "battery_rul_prediction",
-  "target": "rul_cycles",
-  "target_units": "cycles to EOL",
-  "eol_threshold_soh_pct": 80.0,
+  "task": "battery_rul",
+  "target": "rul_efc",
+  "target_units": "EFC to 80 % capacity",
   "features": [
-    "cycle",
-    "soh_pct",
-    "capacity_loss_ah",
-    "temperature_c",
-    "charge_rate_c",
-    "discharge_rate_c",
-    "dod_pct"
+    "charge_c",
+    "discharge_c",
+    "dod_pct",
+    "efc",
+    "retention_pct"
   ],
-  "selected_model": "RandomForest",
   "all_results": {
-    "LinearRegression": {
-      "test_mae": 46.1564,
-      "test_rmse": 57.5115,
-      "test_r2": 0.0394
+    "MeanBaseline": {
+      "cv_mae": 272.04,
+      "cv_mape_pct": 781.91,
+      "cv_r2": -0.0041,
+      "test_mae": 384.16,
+      "test_mape_pct": 278.65,
+      "test_r2": -0.1948
+    },
+    "Ridge-poly2": {
+      "cv_mae": 133.83,
+      "cv_mape_pct": 147.79,
+      "cv_r2": 0.696,
+      "test_mae": 234.0,
+      "test_mape_pct": 102.81,
+      "test_r2": 0.6012
     },
     "RandomForest": {
-      "test_mae": 1.5168,
-      "test_rmse": 3.1555,
-      "test_r2": 0.9971
+      "cv_mae": 117.78,
+      "cv_mape_pct": 44.11,
+      "cv_r2": 0.744,
+      "test_mae": 208.6,
+      "test_mape_pct": 38.99,
+      "test_r2": 0.6635
     },
     "HistGradientBoosting": {
-      "test_mae": 1.6079,
-      "test_rmse": 3.5614,
-      "test_r2": 0.9963
+      "cv_mae": 115.19,
+      "cv_mape_pct": 76.44,
+      "cv_r2": 0.7713,
+      "test_mae": 195.19,
+      "test_mape_pct": 41.4,
+      "test_r2": 0.7246
     }
   },
-  "per_battery_errors": {
-    "B0026": {
-      "count": 474,
-      "mae": 1.5,
-      "rmse": 3.2
-    },
-    "B0005": {
-      "count": 616,
-      "mae": 1.5,
-      "rmse": 3.1
-    }
-  },
-  "train_batteries": [
-    "B0018",
-    "B0025",
-    "B0007",
-    "B0034",
-    "B0033",
-    "B0006"
+  "selected_model": "HistGradientBoosting",
+  "test_groups": [
+    1,
+    45,
+    59,
+    63
+  ],
+  "train_rows": 3055,
+  "test_rows": 290,
+  "selected_by": "cv_mae",
+  "dataset": "ISU-ILCC Battery Aging Dataset (NMC/graphite 502030 pouch, 250 mAh, 30 \u00b0C), CC BY 4.0",
+  "split": "95/5 by test condition; model chosen by 10-fold grouped CV on the 95 %",
+  "training_date": "2026-11-18T11:26:10.032649+00:00",
+  "limitations": [
+    "Lab cells cycled at 30 \u00b0C with constant currents; EV packs see variable temperature, rest and calendar aging.",
+    "Charge rates 0.5-3C and depth of discharge 4-98 % were tested; inputs outside that range are clamped.",
+    "EFC = cumulative discharged Ah / rated capacity. End of life = 80 % of the first measured capacity."
   ],
   "test_batteries": [
-    "B0026",
-    "B0005"
+    "condition group 1",
+    "condition group 45",
+    "condition group 59",
+    "condition group 63"
   ],
-  "train_rows": 3396,
-  "test_rows": 1090,
-  "split": "By battery ID (75/25), never random rows",
-  "training_date": "2026-11-17T14:22:47.070368+00:00",
-  "dataset_version": "/Users/sunny/Clg/Sem-07/DT_EV-Battery/laptop-2/src/../data/battery_aging/processed/aging_normalized.parquet",
-  "limitations": [
-    "RUL is estimated as cycles until SOH \u2264 80% \u2014 threshold is a configurable assumption.",
-    "Model trained on lab cycling data (single chemistry, controlled conditions).",
-    "RUL predictions are model estimates, not certified battery lifetime guarantees.",
-    "Real EV batteries face variable conditions (temperature, charge patterns, calendar aging).",
-    "Lab-to-field transfer requires calibration with real vehicle data.",
-    "Batteries that never reached EOL in test data have extrapolated RUL labels."
-  ]
+  "summary": "HistGradientBoosting: MAE 195.19 EFC on unseen test conditions"
 }

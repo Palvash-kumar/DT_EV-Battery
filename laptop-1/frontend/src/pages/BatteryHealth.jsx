@@ -25,6 +25,7 @@ export function BatteryHealth() {
   const latest = data.estimates.find((e) => e.status === 'completed');
   const soh = meta?.models?.soh;
   const rul = meta?.models?.rul;
+  const life = meta?.models?.life;
 
   return (
     <>
@@ -68,7 +69,7 @@ export function BatteryHealth() {
             <p className="stat-value">
               {num(latest.capacityLossAh, 2)} <span className="unit">Ah</span>
             </p>
-            <p className="small">Relative to the lab cell's starting capacity.</p>
+            <p className="small">Only reported when a pack's capacity in Ah is known; the charging request gives kWh.</p>
             <p className="small muted">Estimated {dateTime(latest.processedAt)}</p>
           </section>
         </div>
@@ -132,25 +133,33 @@ export function BatteryHealth() {
               <li key={n}>{n}</li>
             ))}
           </ul>
-          {(soh || rul) && (
+          {(soh || rul || life) && (
             <>
-              <h3>Model accuracy on held-out batteries</h3>
+              <h3>Trained models, scored on cells they never saw</h3>
               <ul>
-                {soh && (
+                {life && (
                   <li>
-                    SOH: {soh.selectedModel}, MAE {num(soh.testMae, 2)} percentage points, R² {num(soh.testR2, 3)}
-                    {soh.testBatteries ? ` (test batteries ${soh.testBatteries.join(', ')})` : ''}.
+                    Cycle life vs charge rate and depth of discharge (used for wear): {life.selectedModel}, cross-validated error{' '}
+                    {num(life.cvMae, 0)} cycles, R² {num(life.cvR2, 2)}, on unseen test conditions.
                   </li>
                 )}
                 {rul && (
                   <li>
-                    RUL: {rul.selectedModel}, MAE {num(rul.testMae, 1)} cycles, R² {num(rul.testR2, 3)}.
+                    Remaining life from current state: {rul.selectedModel}, cross-validated error {num(rul.cvMae, 0)} cycles, R²{' '}
+                    {num(rul.cvR2, 2)}.
+                  </li>
+                )}
+                {soh && (
+                  <li>
+                    SOH from the charging curve: {soh.selectedModel}, error {num(soh.leaveOneBatteryOut?.mae, 2)} percentage points, R²{' '}
+                    {num(soh.leaveOneBatteryOut?.r2, 2)} (each NASA battery held out once). It needs charger voltage data, which this
+                    station does not stream yet, so the SOH above comes from vehicle age.
                   </li>
                 )}
               </ul>
               <p className="small">
-                These scores are measured on synthetic curves from the same generator the model was trained on, so they say how well the
-                model learned that generator, not how well it would do on a real battery.
+                The cells are lab cells, so cycle counts do not transfer to a car directly. The dashboard uses the relative effect of
+                charge rate and depth of discharge, scaled to a typical EV pack.
               </p>
             </>
           )}

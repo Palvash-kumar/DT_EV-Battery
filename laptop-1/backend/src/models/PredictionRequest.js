@@ -30,15 +30,25 @@ const inputSchema = new Schema(
 
 const resultSchema = new Schema(
   {
-    predictions: { durationHours: Number, energyKwh: Number },
+    predictions: {
+      durationHours: Number,
+      energyKwh: Number,
+      costUsd: Number,
+      estimatedSohPct: Number,
+      batteryWearPct: Number,
+      wearFactor: Number,
+    },
     units: {
       durationHours: { type: String, default: 'h' },
       energyKwh: { type: String, default: 'kWh' },
+      costUsd: { type: String, default: 'USD' },
+      estimatedSohPct: { type: String, default: '%' },
+      batteryWearPct: { type: String, default: 'SOH percentage points' },
     },
-    // 'ml_estimate' for the real worker. Results from the dev stub worker
-    // (model version "dev-stub") are stored as 'simulation' instead.
-    source: { type: String, enum: ['ml_estimate', 'simulation'], default: 'ml_estimate' },
-    model: { durationVersion: String, energyVersion: String },
+    // Set from the duration model version: "physics-*" (DC fast charging) →
+    // physics_estimate, "dev-stub*" → simulation, anything else → ml_estimate.
+    source: { type: String, enum: ['ml_estimate', 'physics_estimate', 'simulation'], default: 'ml_estimate' },
+    model: { durationVersion: String, energyVersion: String, costVersion: String, wearVersion: String },
     warnings: [String],
     processedAt: Date,
     receivedAt: Date,

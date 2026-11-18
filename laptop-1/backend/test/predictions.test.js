@@ -66,6 +66,49 @@ describe('prediction flow (Express + MQTT + MongoDB)', { skip: !hasMongo && 'no 
     assert.equal((await api.get(res.headers.location)).body.result.source, 'simulation');
   });
 
+  it('stores cost, SOH and wear, and labels DC physics results physics_estimate', async () => {
+    worker.mode = 'silent';
+    const res = await api.post('/api/predictions/charging').send(sampleBody()).expect(202);
+    await worker.publish(
+      worker.resultFor(res.body, {
+        predictions: {
+          durationHours: 0.36,
+          energyKwh: 57.4,
+          costUsd: 27.55,
+          estimatedSohPct: 94.6,
+          batteryWearPct: 0.0121,
+          wearFactor: 2.4,
+        },
+        model: {
+          durationVersion: 'physics-1.0',
+          energyVersion: 'physics-1.0',
+          costVersion: 'physics-1.0',
+          wearVersion: 'isu-life-1.0',
+        },
+      }),
+    );
+    await waitFor(async () => (await api.get(res.headers.location)).body.status === 'completed');
+    const { result } = (await api.get(res.headers.location)).body;
+    assert.equal(result.source, 'physics_estimate');
+    assert.equal(result.predictions.costUsd, 27.55);
+    assert.equal(result.predictions.estimatedSohPct, 94.6);
+    assert.equal(result.predictions.batteryWearPct, 0.0121);
+    assert.equal(result.predictions.wearFactor, 2.4);
+    assert.equal(result.model.wearVersion, 'isu-life-1.0');
+  });
+
+  it('labels Level 2 results from the trained session models ml_estimate', async () => {
+    worker.mode = 'silent';
+    const res = await api.post('/api/predictions/charging').send(sampleBody()).expect(202);
+    await worker.publish(
+      worker.resultFor(res.body, {
+        model: { durationVersion: 'palo-alto-hgb-2026-11-18', energyVersion: 'physics-1.0', costVersion: 'palo-alto-hgb-2026-11-18' },
+      }),
+    );
+    await waitFor(async () => (await api.get(res.headers.location)).body.status === 'completed');
+    assert.equal((await api.get(res.headers.location)).body.result.source, 'ml_estimate');
+  });
+
   it('?wait=true returns the finished result in the same HTTP call', async () => {
     const res = await api.post('/api/predictions/charging?wait=true').send(sampleBody()).expect(200);
     assert.equal(res.body.status, 'completed');

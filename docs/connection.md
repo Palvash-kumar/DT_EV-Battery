@@ -50,7 +50,17 @@ Look for the **IPv4 Address** under the adapter that's actually connected to the
 cd laptop-2
 python -m venv .venv
 .venv\Scripts\activate          # Windows
-pip install paho-mqtt python-dotenv jsonschema scikit-learn joblib pandas numpy pytest
+pip install -r requirements.txt
+```
+
+The worker loads trained models from `laptop-2/models/` (`session_duration.joblib`, `session_cost.joblib`,
+`battery_life.joblib`). If they are missing, download the data and train them:
+
+```bash
+python src/download_datasets.py nasa isu isu-raw paloalto acn
+python src/prepare_sessions.py && python src/train_session_models.py
+python src/prepare_isu.py && python src/train_battery_degradation.py
+python src/prepare_nasa.py && python src/train_battery_soh.py
 ```
 
 ### 2.4 Install Mosquitto (if it isn't already)
@@ -126,8 +136,7 @@ python main.py
 `.env.example` already has the right defaults for this machine (`MQTT_HOST=0.0.0.0`, `MQTT_USERNAME=mlworker`, `MQTT_PASSWORD=mlworker_pass_2026`) since the worker connects to the broker running on the same machine. You should see:
 ```
 ML worker starting — station=STATION-001
-Duration model: .../models/charging_duration.joblib
-...
+Estimator: physics-1.0  prices USD/kWh: {'Level 1': 0.17, 'Level 2': 0.3, 'DC Fast Charger': 0.48}
 MQTT connected to 0.0.0.0:1883
 Subscribed to evdt/v1/requests/charging (QoS 1)
 ```

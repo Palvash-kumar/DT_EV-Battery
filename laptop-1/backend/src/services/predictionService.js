@@ -10,6 +10,11 @@ const FINAL = new Set(['completed', 'failed']);
 // scripts/stub-worker.js marks its output with this model version.
 const isStubResult = (msg) =>
   [msg.model?.durationVersion, msg.model?.energyVersion].some((v) => String(v || '').startsWith('dev-stub'));
+const isPhysicsResult = (msg) => String(msg.model?.durationVersion || '').startsWith('physics');
+const resultSource = (msg) => {
+  if (isStubResult(msg)) return 'simulation';
+  return isPhysicsResult(msg) ? 'physics_estimate' : 'ml_estimate';
+};
 const SEEN_LIMIT = 5000;
 
 // Small insertion-ordered set that forgets the oldest ids once it is full.
@@ -262,7 +267,7 @@ export class PredictionService extends EventEmitter {
             completedAt: now,
             error: null,
             result: {
-              source: isStubResult(msg) ? 'simulation' : 'ml_estimate',
+              source: resultSource(msg),
               predictions: msg.predictions,
               model: msg.model || {},
               warnings: msg.warnings || [],

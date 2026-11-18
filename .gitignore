@@ -14,7 +14,13 @@ __pycache__/
 
 laptop-2/data/processed/
 laptop-2/data/battery_aging/raw/
+laptop-2/data/battery_aging/processed/*.parquet
+laptop-2/data/charging_sessions/
 *.joblib
+# Models the ML worker loads (~4 MB); retraining them needs ~10 GB of downloads
+!laptop-2/models/session_duration.joblib
+!laptop-2/models/session_cost.joblib
+!laptop-2/models/battery_life.joblib
 *.pkl
 
 .DS_Store

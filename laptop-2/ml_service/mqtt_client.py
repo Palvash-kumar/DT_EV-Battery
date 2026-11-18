@@ -75,12 +75,12 @@ def connect(on_message):
     return _client
 
 
-def publish_result(payload_str: str):
-    """Publish a JSON result string to the results topic (QoS 1)."""
+def publish_result(payload_str: str, topic: str = TOPIC_RESULTS):
+    """Publish a JSON result string (QoS 1); defaults to the charging results topic."""
     if _client is None:
         log.error("Cannot publish: MQTT client not connected")
         return
-    info = _client.publish(TOPIC_RESULTS, payload_str, qos=1)
+    info = _client.publish(topic, payload_str, qos=1)
     # ponytail: don't block on info.wait_for_publish(); QoS 1 handles delivery.
 
 

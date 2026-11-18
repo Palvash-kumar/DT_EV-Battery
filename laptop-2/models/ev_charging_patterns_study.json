@@ -1,0 +1,260 @@
+{
+  "dataset": "C:\\Users\\prudh\\OneDrive\\Desktop\\DT_EV-Battery\\Data\\ev_charging_patterns.csv",
+  "cleaning": {
+    "raw_rows": 1320,
+    "dropped_by_rule": {
+      "soc_outside_0_100": 32,
+      "start_soc_not_below_end_soc": 259,
+      "battery_capacity_outside_10_200_kwh": 7,
+      "temperature_outside_minus30_50_c": 4,
+      "vehicle_age_outside_0_30": 0,
+      "non_positive_duration_or_cost": 0
+    },
+    "rows_after_cleaning": 1018
+  },
+  "targets": {
+    "duration": {
+      "task": "charging_duration_prediction",
+      "target": "Charging Duration (hours)",
+      "target_units": "hours",
+      "selected_model": "PhysicsEstimate",
+      "best_ml_model": "Ridge",
+      "all_results": {
+        "MeanBaseline": {
+          "cv_mae": 0.8791,
+          "cv_r2": -0.001,
+          "test_mae": 0.9521,
+          "test_rmse": 1.0979,
+          "test_r2": -0.0248,
+          "prediction_spread_std": 0.0
+        },
+        "Ridge": {
+          "cv_mae": 0.8798,
+          "cv_r2": -0.0067,
+          "test_mae": 0.9174,
+          "test_rmse": 1.0621,
+          "test_r2": 0.0409,
+          "prediction_spread_std": 0.156
+        },
+        "RandomForest": {
+          "cv_mae": 0.8899,
+          "cv_r2": -0.031,
+          "test_mae": 0.9649,
+          "test_rmse": 1.1566,
+          "test_r2": -0.1372,
+          "prediction_spread_std": 0.2267
+        },
+        "HistGradientBoosting": {
+          "cv_mae": 0.9108,
+          "cv_r2": -0.0916,
+          "test_mae": 0.9547,
+          "test_rmse": 1.139,
+          "test_r2": -0.1029,
+          "prediction_spread_std": 0.3415
+        },
+        "PhysicsEstimate": {
+          "test_mae": 4.8323,
+          "test_rmse": 8.573,
+          "test_r2": -61.4818
+        }
+      },
+      "permutation_test": {
+        "model": "Ridge",
+        "cv_mae_real_targets": 0.8798,
+        "cv_mae_shuffled_targets_mean": 0.8846,
+        "p_value": 0.1584,
+        "mae_gain_over_mean_baseline_pct": -0.08,
+        "has_useful_signal": false
+      },
+      "features_numeric": [
+        "Battery Capacity (kWh)",
+        "State of Charge (Start %)",
+        "State of Charge (End %)",
+        "Charging Rate (kW)",
+        "Temperature (\u00b0C)",
+        "Vehicle Age (years)",
+        "socDelta",
+        "energyNeededKwh",
+        "physicsDurationHours",
+        "physicsEnergyKwh",
+        "physicsCostUsd"
+      ],
+      "features_categorical": [
+        "Vehicle Model",
+        "Charger Type"
+      ],
+      "train_rows": 967,
+      "test_rows": 51,
+      "split": "95/5 random, seed=42; model choice by 5-fold CV on the 95 %",
+      "training_date": "2026-11-18T11:02:50.995504+00:00",
+      "physics_version": "physics-1.0",
+      "limitations": [
+        "ev_charging_patterns.csv is synthetic: its target columns are statistically independent of every input (all correlations |r| < 0.07), so no model can learn them; see the permutation test.",
+        "Physics estimates use approximate public figures (charger limits, vehicle specs, taper, prices), not measurements from this station.",
+        "The 5 % test set has only 51 rows, so test scores swing a lot between seeds; CV scores on the 95 % are the more reliable comparison."
+      ]
+    },
+    "energy": {
+      "task": "charging_energy_prediction",
+      "target": "Energy Consumed (kWh)",
+      "target_units": "kWh",
+      "selected_model": "PhysicsEstimate",
+      "best_ml_model": "Ridge",
+      "all_results": {
+        "MeanBaseline": {
+          "cv_mae": 18.1399,
+          "cv_r2": -0.0088,
+          "test_mae": 19.3087,
+          "test_rmse": 22.0661,
+          "test_r2": -0.0009,
+          "prediction_spread_std": 0.0
+        },
+        "Ridge": {
+          "cv_mae": 17.9516,
+          "cv_r2": -0.0034,
+          "test_mae": 20.3466,
+          "test_rmse": 22.7244,
+          "test_r2": -0.0615,
+          "prediction_spread_std": 3.8615
+        },
+        "RandomForest": {
+          "cv_mae": 18.1314,
+          "cv_r2": -0.0247,
+          "test_mae": 19.7095,
+          "test_rmse": 23.1048,
+          "test_r2": -0.0973,
+          "prediction_spread_std": 6.3675
+        },
+        "HistGradientBoosting": {
+          "cv_mae": 18.3976,
+          "cv_r2": -0.0932,
+          "test_mae": 21.2015,
+          "test_rmse": 24.8092,
+          "test_r2": -0.2652,
+          "prediction_spread_std": 8.0134
+        },
+        "PhysicsEstimate": {
+          "test_mae": 23.7658,
+          "test_rmse": 30.189,
+          "test_r2": -0.8734
+        }
+      },
+      "permutation_test": {
+        "model": "Ridge",
+        "cv_mae_real_targets": 17.9516,
+        "cv_mae_shuffled_targets_mean": 18.2691,
+        "p_value": 0.0099,
+        "mae_gain_over_mean_baseline_pct": 1.04,
+        "has_useful_signal": false
+      },
+      "features_numeric": [
+        "Battery Capacity (kWh)",
+        "State of Charge (Start %)",
+        "State of Charge (End %)",
+        "Charging Rate (kW)",
+        "Temperature (\u00b0C)",
+        "Vehicle Age (years)",
+        "socDelta",
+        "energyNeededKwh",
+        "physicsDurationHours",
+        "physicsEnergyKwh",
+        "physicsCostUsd"
+      ],
+      "features_categorical": [
+        "Vehicle Model",
+        "Charger Type"
+      ],
+      "train_rows": 855,
+      "test_rows": 46,
+      "split": "95/5 random, seed=42; model choice by 5-fold CV on the 95 %",
+      "training_date": "2026-11-18T11:02:53.386645+00:00",
+      "physics_version": "physics-1.0",
+      "limitations": [
+        "ev_charging_patterns.csv is synthetic: its target columns are statistically independent of every input (all correlations |r| < 0.07), so no model can learn them; see the permutation test.",
+        "Physics estimates use approximate public figures (charger limits, vehicle specs, taper, prices), not measurements from this station.",
+        "The 5 % test set has only 46 rows, so test scores swing a lot between seeds; CV scores on the 95 % are the more reliable comparison."
+      ]
+    },
+    "cost": {
+      "task": "charging_cost_prediction",
+      "target": "Charging Cost (USD)",
+      "target_units": "USD",
+      "selected_model": "PhysicsEstimate",
+      "best_ml_model": "Ridge",
+      "all_results": {
+        "MeanBaseline": {
+          "cv_mae": 9.2727,
+          "cv_r2": -0.0069,
+          "test_mae": 9.4419,
+          "test_rmse": 10.6632,
+          "test_r2": -0.0121,
+          "prediction_spread_std": 0.0
+        },
+        "Ridge": {
+          "cv_mae": 9.2622,
+          "cv_r2": -0.0149,
+          "test_mae": 9.6208,
+          "test_rmse": 10.7633,
+          "test_r2": -0.0312,
+          "prediction_spread_std": 1.5526
+        },
+        "RandomForest": {
+          "cv_mae": 9.4045,
+          "cv_r2": -0.0537,
+          "test_mae": 9.253,
+          "test_rmse": 10.3152,
+          "test_r2": 0.0529,
+          "prediction_spread_std": 1.9813
+        },
+        "HistGradientBoosting": {
+          "cv_mae": 9.5191,
+          "cv_r2": -0.0991,
+          "test_mae": 9.0174,
+          "test_rmse": 10.2718,
+          "test_r2": 0.0609,
+          "prediction_spread_std": 2.9822
+        },
+        "PhysicsEstimate": {
+          "test_mae": 16.8164,
+          "test_rmse": 19.7574,
+          "test_r2": -2.4745
+        }
+      },
+      "permutation_test": {
+        "model": "Ridge",
+        "cv_mae_real_targets": 9.2622,
+        "cv_mae_shuffled_targets_mean": 9.3262,
+        "p_value": 0.1089,
+        "mae_gain_over_mean_baseline_pct": 0.11,
+        "has_useful_signal": false
+      },
+      "features_numeric": [
+        "Battery Capacity (kWh)",
+        "State of Charge (Start %)",
+        "State of Charge (End %)",
+        "Charging Rate (kW)",
+        "Temperature (\u00b0C)",
+        "Vehicle Age (years)",
+        "socDelta",
+        "energyNeededKwh",
+        "physicsDurationHours",
+        "physicsEnergyKwh",
+        "physicsCostUsd"
+      ],
+      "features_categorical": [
+        "Vehicle Model",
+        "Charger Type"
+      ],
+      "train_rows": 967,
+      "test_rows": 51,
+      "split": "95/5 random, seed=42; model choice by 5-fold CV on the 95 %",
+      "training_date": "2026-11-18T11:02:55.766948+00:00",
+      "physics_version": "physics-1.0",
+      "limitations": [
+        "ev_charging_patterns.csv is synthetic: its target columns are statistically independent of every input (all correlations |r| < 0.07), so no model can learn them; see the permutation test.",
+        "Physics estimates use approximate public figures (charger limits, vehicle specs, taper, prices), not measurements from this station.",
+        "The 5 % test set has only 51 rows, so test scores swing a lot between seeds; CV scores on the 95 % are the more reliable comparison."
+      ]
+    }
+  }
+}

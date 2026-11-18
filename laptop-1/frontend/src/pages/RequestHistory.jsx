@@ -95,6 +95,7 @@ export function RequestHistory() {
                   <th scope="col">Status</th>
                   <th scope="col">Duration</th>
                   <th scope="col">Energy</th>
+                  <th scope="col">Cost</th>
                   <th scope="col">Result source</th>
                 </tr>
               </thead>
@@ -119,6 +120,7 @@ export function RequestHistory() {
                     </td>
                     <td>{r.result ? hoursToHm(r.result.predictions.durationHours) : '–'}</td>
                     <td>{r.result ? `${num(r.result.predictions.energyKwh, 1)} kWh` : '–'}</td>
+                    <td>{r.result?.predictions.costUsd != null ? `$${num(r.result.predictions.costUsd, 2)}` : '–'}</td>
                     <td>{r.result ? <SourceBadge source={r.result.source || 'ml_estimate'} small /> : '–'}</td>
                   </tr>
                 ))}
